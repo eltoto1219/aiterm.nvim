@@ -69,6 +69,29 @@ for _, map in ipairs(vim.api.nvim_get_keymap("n")) do
 end
 assert(treehouse_map, "treehouse mapping registered from opts")
 
+-- Toggle flow: <leader>t from a plain terminal returns to the AI buffer it
+-- came from, not the last file buffer.
+local terminal = require("aiterm.terminal")
+vim.cmd.edit(vim.fn.tempname())
+local file_buf = vim.api.nvim_get_current_buf()
+local ai_buf = terminal.open_command({ "sh" }, "ai-test", { ai_kind = "claude" })
+assert(ai_buf and vim.api.nvim_get_current_buf() == ai_buf, "ai terminal spawned and focused")
+terminal.toggle()
+local term_buf = vim.api.nvim_get_current_buf()
+assert(
+    term_buf ~= ai_buf and terminal.is_terminal(term_buf) and vim.b[term_buf].aiterm_ai_kind == nil,
+    "toggle from AI buffer lands in a plain terminal"
+)
+terminal.toggle()
+assert(vim.api.nvim_get_current_buf() == ai_buf, "toggle returns to the AI buffer it came from")
+terminal.toggle()
+assert(vim.api.nvim_get_current_buf() == term_buf, "toggle re-enters the plain terminal")
+vim.cmd.buffer(file_buf)
+terminal.toggle()
+assert(vim.api.nvim_get_current_buf() == term_buf, "toggle from a file still enters the terminal")
+terminal.toggle()
+assert(vim.api.nvim_get_current_buf() == file_buf, "toggle from terminal returns to the file when it came from one")
+
 -- Pure logic: color math and run template rendering via public surfaces.
 local colors = require("aiterm.ui.colors")
 assert(colors.to_hex(0xff0000) == "#ff0000", "color hex conversion")

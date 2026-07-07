@@ -257,11 +257,36 @@ function M.ensure()
     M.open_new()
 end
 
+-- Where toggle() should land when leaving a plain terminal. Only honored
+-- when it points at an AI buffer: file returns already flow through
+-- buffers.get_edit_return_buf(), which tracks the last edit buffer.
+local toggle_return_bufnr = nil
+
+local function toggle_return_ai_buf()
+    local target = toggle_return_bufnr
+    if
+        target
+        and vim.api.nvim_buf_is_valid(target)
+        and vim.fn.buflisted(target) == 1
+        and vim.b[target].aiterm_ai_kind ~= nil
+    then
+        return target
+    end
+    return nil
+end
+
 function M.toggle()
     local current = vim.api.nvim_get_current_buf()
     local terms = plain_terminal_buffers()
 
     if M.is_terminal(current) and vim.b[current].aiterm_ai_kind == nil then
+        -- came here from an AI buffer: toggle back to it
+        local ai_return = toggle_return_ai_buf()
+        if ai_return and safe_switch_buffer(ai_return) then
+            vim.cmd.startinsert()
+            return
+        end
+
         local target = buffers.get_edit_return_buf()
         if target then
             if not safe_switch_buffer(target) then
@@ -280,6 +305,8 @@ function M.toggle()
         end
         return
     end
+
+    toggle_return_bufnr = current
 
     local last_terminal = M.get_last_terminal_buf()
     if last_terminal then
