@@ -1,5 +1,6 @@
 local M = {}
 
+local config = require("aiterm.config")
 local terminal = require("aiterm.terminal")
 
 -- Registry of AI harness sessions (claude, codex) running in plain terminal
@@ -18,15 +19,12 @@ local toggle_return_bufnr = nil
 
 M.codex_sessions_dir = vim.fs.joinpath(vim.env.HOME or "~", ".codex", "sessions")
 
--- Shell aliases don't apply to termopen commands, so the always-on flags
--- live here instead.
-local claude_args = { "--dangerously-skip-permissions" }
-local codex_args = {
-    "--no-alt-screen",
-    "--search",
-    "--dangerously-bypass-approvals-and-sandbox",
-    "--dangerously-bypass-hook-trust",
-}
+-- Shell aliases don't apply to termopen commands, so always-on flags come
+-- from opts.ai.kinds[kind].args instead.
+local function kind_args(kind)
+    local spec = config.opts.ai.kinds[kind]
+    return spec and spec.args or {}
+end
 
 local function command(argv, extra_args)
     return vim.list_extend(argv, extra_args)
@@ -43,18 +41,25 @@ M.commands = {
         elseif entry and entry.id then
             vim.list_extend(argv, { "--session-id", entry.id })
         end
-        return command(argv, claude_args)
+        return command(argv, kind_args("claude"))
     end,
     codex = function(entry, resume)
         if resume then
             if entry and entry.id then
-                return command({ "codex", "resume", entry.id }, codex_args)
+                return command({ "codex", "resume", entry.id }, kind_args("codex"))
             end
-            return command({ "codex", "resume", "--last" }, codex_args)
+            return command({ "codex", "resume", "--last" }, kind_args("codex"))
         end
-        return command({ "codex" }, codex_args)
+        return command({ "codex" }, kind_args("codex"))
     end,
 }
+
+-- Configured kind names, sorted; drives pickers and generated commands.
+function M.kind_names()
+    local names = vim.tbl_keys(config.opts.ai.kinds)
+    table.sort(names)
+    return names
+end
 
 function M.shell_command(kind)
     local builder = M.commands[kind]
@@ -81,9 +86,7 @@ function M.ensure_available(kind)
 end
 
 local function registry_path()
-    local dir = vim.fs.joinpath(vim.fn.stdpath("state"), "aiterm")
-    vim.fn.mkdir(dir, "p")
-    return vim.fs.joinpath(dir, "ai_sessions.json")
+    return vim.fs.joinpath(config.state_dir(), "ai_sessions.json")
 end
 
 local function load_registry()
@@ -494,7 +497,7 @@ function M.new_session()
         toggle_return_bufnr = current
     end
 
-    local kinds = { "claude", "codex" }
+    local kinds = M.kind_names()
     require("aiterm.ui.picker").select("New AI session:", kinds, function(index)
         M.open(kinds[index])
     end)
@@ -676,19 +679,35 @@ local function should_autostart()
 end
 
 function M.setup()
-    load_registry()
+    -- Custom harnesses: opts.ai.kinds.<name>.command replaces the launcher.
+    for kind, spec in pairs(config.opts.ai.kinds) do
+        if type(spec) == "table" and type(spec.command) == "function" then
+            M.commands[kind] = spec.command
+        end
+    end
+
+    if config.opts.ai.codex_sessions_dir then
+        M.codex_sessions_dir = vim.fs.normalize(config.opts.ai.codex_sessions_dir)
+    end
+
+    if config.opts.ai.restore then
+        load_registry()
+    end
 
     local group = vim.api.nvim_create_augroup("AitermAISessions", { clear = true })
 
-    vim.api.nvim_create_user_command("Claude", function()
-        M.open("claude")
-    end, { desc = "Open a new Claude Code session in a terminal buffer" })
-    vim.api.nvim_create_user_command("Codex", function()
-        M.open("codex")
-    end, { desc = "Open a new Codex session in a terminal buffer" })
-    vim.api.nvim_create_user_command("AIRestore", M.restore_here, {
-        desc = "Restore cached AI harness sessions born in the current directory",
-    })
+    if config.opts.ai.commands then
+        for _, kind in ipairs(M.kind_names()) do
+            if M.commands[kind] then
+                vim.api.nvim_create_user_command(kind:sub(1, 1):upper() .. kind:sub(2), function()
+                    M.open(kind)
+                end, { desc = "Open a new " .. kind .. " session in a terminal buffer" })
+            end
+        end
+        vim.api.nvim_create_user_command("AIRestore", M.restore_here, {
+            desc = "Restore cached AI harness sessions born in the current directory",
+        })
+    end
 
     vim.api.nvim_create_autocmd("StdinReadPre", {
         group = group,
@@ -803,29 +822,36 @@ function M.setup()
         end
     end
 
-    vim.api.nvim_create_autocmd("VimEnter", {
-        group = group,
-        callback = function()
-            vim.defer_fn(function()
-                if not should_autostart() then
-                    return
-                end
+    if config.opts.ai.autostart then
+        vim.api.nvim_create_autocmd("VimEnter", {
+            group = group,
+            callback = function()
+                vim.defer_fn(function()
+                    if not should_autostart() then
+                        return
+                    end
 
-                local bufnr, count = restore_cached(vim.fn.getcwd())
-                if count > 0 then
-                    vim.notify(("Restored %d AI harness session(s)"):format(count))
-                elseif vim.fn.executable("claude") == 1 then
-                    bufnr = M.open("claude")
-                end
+                    local bufnr, count = restore_cached(vim.fn.getcwd())
+                    if count > 0 then
+                        vim.notify(("Restored %d AI harness session(s)"):format(count))
+                    else
+                        for _, kind in ipairs(M.kind_names()) do
+                            if M.commands[kind] and vim.fn.executable(kind) == 1 then
+                                bufnr = M.open(kind)
+                                break
+                            end
+                        end
+                    end
 
-                if bufnr then
-                    vim.defer_fn(function()
-                        focus_ai_buffer(bufnr)
-                    end, 400)
-                end
-            end, 100)
-        end,
-    })
+                    if bufnr then
+                        vim.defer_fn(function()
+                            focus_ai_buffer(bufnr)
+                        end, 400)
+                    end
+                end, 100)
+            end,
+        })
+    end
 end
 
 return M

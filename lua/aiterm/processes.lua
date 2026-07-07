@@ -1,6 +1,7 @@
 local M = {}
 
 local buffers = require("aiterm.buffers")
+local config = require("aiterm.config")
 local process_backend = require("aiterm.process_backend")
 local terminal = require("aiterm.terminal")
 local ui_input = require("aiterm.ui.input")
@@ -9,9 +10,7 @@ local ui_picker = require("aiterm.ui.picker")
 local last_session_name = nil
 
 local function last_session_path()
-    local dir = vim.fs.joinpath(vim.fn.stdpath("state"), "aiterm")
-    vim.fn.mkdir(dir, "p")
-    return vim.fs.joinpath(dir, "last_persistent_process")
+    return vim.fs.joinpath(config.state_dir(), "last_persistent_process")
 end
 
 local function save_last_session_name(name)
@@ -45,9 +44,7 @@ local function load_last_session_name()
 end
 
 local function cwd_map_path()
-    local dir = vim.fs.joinpath(vim.fn.stdpath("state"), "aiterm")
-    vim.fn.mkdir(dir, "p")
-    return vim.fs.joinpath(dir, "process_cwds.json")
+    return vim.fs.joinpath(config.state_dir(), "process_cwds.json")
 end
 
 local function load_cwd_map()

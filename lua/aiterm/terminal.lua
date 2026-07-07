@@ -1,7 +1,23 @@
 local M = {}
-local env = require("aiterm.env")
+local config = require("aiterm.config")
 local buffers = require("aiterm.buffers")
 local ui_input = require("aiterm.ui.input")
+
+-- Snapshot of the environment at nvim launch, so terminals spawned later do
+-- not inherit mutations made to vim.env during the session.
+local launch_env = vim.fn.environ()
+
+local function terminal_env()
+    local env = vim.deepcopy(launch_env)
+    local extra = config.opts.terminal.env
+    if type(extra) == "function" then
+        extra = extra()
+    end
+    if type(extra) == "table" then
+        env = vim.tbl_extend("force", env, extra)
+    end
+    return env
+end
 
 local last_terminal_bufnr = nil
 local custom_labels = {}
@@ -146,7 +162,7 @@ function M.open_new()
     if not safe_enew() then
         return
     end
-    vim.fn.termopen(vim.o.shell, { env = env.terminal_env() })
+    vim.fn.termopen(vim.o.shell, { env = terminal_env() })
     enter_insert()
 end
 
@@ -176,7 +192,7 @@ function M.open_command(command, label, opts)
         vim.b[bufnr].aiterm_ai_kind = opts.ai_kind
     end
 
-    local job_opts = { env = env.terminal_env() }
+    local job_opts = { env = terminal_env() }
     if opts and opts.cwd and vim.fn.isdirectory(opts.cwd) == 1 then
         job_opts.cwd = opts.cwd
     end
@@ -451,25 +467,28 @@ local function prompt_jump(direction)
 end
 
 function M.set_prompt_jump_keymaps(bufnr)
+    local mappings = config.opts.terminal.mappings
     local jumps = {
-        { "[a", -1, "Jump to previous prompt" },
-        { "]a", 1, "Jump to next prompt, or to the live input in normal mode" },
+        { mappings.prompt_prev, -1, "Jump to previous prompt" },
+        { mappings.prompt_next, 1, "Jump to next prompt, or to the live input in normal mode" },
     }
     for _, jump in ipairs(jumps) do
-        local lhs, direction, desc = unpack(jump)
-        vim.keymap.set("n", lhs, prompt_jump(direction), {
-            buffer = bufnr,
-            silent = true,
-            desc = desc,
-        })
-        vim.keymap.set("t", lhs, function()
-            vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-\\><C-n>", true, false, true), "n", false)
-            vim.schedule(prompt_jump(direction))
-        end, {
-            buffer = bufnr,
-            silent = true,
-            desc = desc,
-        })
+        local lhs, direction, desc = jump[1], jump[2], jump[3]
+        if lhs then
+            vim.keymap.set("n", lhs, prompt_jump(direction), {
+                buffer = bufnr,
+                silent = true,
+                desc = desc,
+            })
+            vim.keymap.set("t", lhs, function()
+                vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-\\><C-n>", true, false, true), "n", false)
+                vim.schedule(prompt_jump(direction))
+            end, {
+                buffer = bufnr,
+                silent = true,
+                desc = desc,
+            })
+        end
     end
 end
 
@@ -487,12 +506,14 @@ function M.configure_persistent_buffer(bufnr, session_name)
 
     M.set_prompt_jump_keymaps(bufnr)
 
-    vim.keymap.set("t", "<Esc>", "<C-\\><C-n>", {
-        buffer = bufnr,
-        silent = true,
-        nowait = true,
-        desc = "Leave terminal input mode",
-    })
+    if config.opts.terminal.mappings.persistent_esc then
+        vim.keymap.set("t", "<Esc>", "<C-\\><C-n>", {
+            buffer = bufnr,
+            silent = true,
+            nowait = true,
+            desc = "Leave terminal input mode",
+        })
+    end
 end
 
 function M.persistent_process_name(bufnr)
@@ -513,6 +534,101 @@ function M.find_persistent_buffer(session_name)
             end
         end
     end
+end
+
+-- Terminal window styling: pinned background, no numbers/signcolumn, and
+-- startinsert/stopinsert on enter/leave. Gated by opts.terminal.style.
+local function normalized_background()
+    local value = config.opts.terminal.background
+    if type(value) == "string" then
+        return tonumber(value:gsub("#", ""), 16)
+    end
+    return value
+end
+
+local function setup_style(group)
+    local terminal_bg = normalized_background()
+
+    local function set_terminal_highlights()
+        if not terminal_bg then
+            return
+        end
+        local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
+        local normal_nc = vim.api.nvim_get_hl(0, { name = "NormalNC", link = false })
+        local end_of_buffer = vim.api.nvim_get_hl(0, { name = "EndOfBuffer", link = false })
+
+        vim.api.nvim_set_hl(0, "AitermTerminalNormal", { fg = normal.fg, bg = terminal_bg })
+        vim.api.nvim_set_hl(0, "AitermTerminalNormalNC", { fg = normal_nc.fg or normal.fg, bg = terminal_bg })
+        vim.api.nvim_set_hl(0, "AitermTerminalEndOfBuffer", { fg = end_of_buffer.fg or terminal_bg, bg = terminal_bg })
+    end
+
+    local function apply_terminal_window_style(winid)
+        if not terminal_bg or not vim.api.nvim_win_is_valid(winid) then
+            return
+        end
+
+        vim.wo[winid].winhighlight = table.concat({
+            "Normal:AitermTerminalNormal",
+            "NormalNC:AitermTerminalNormalNC",
+            "EndOfBuffer:AitermTerminalEndOfBuffer",
+        }, ",")
+    end
+
+    local function clear_terminal_window_style(winid)
+        if not vim.api.nvim_win_is_valid(winid) then
+            return
+        end
+
+        local current = vim.wo[winid].winhighlight or ""
+        if current:find("AitermTerminal", 1, true) then
+            vim.wo[winid].winhighlight = ""
+        end
+    end
+
+    vim.api.nvim_create_autocmd({ "ColorScheme", "VimEnter" }, {
+        group = group,
+        callback = set_terminal_highlights,
+    })
+
+    vim.api.nvim_create_autocmd({ "TermOpen", "TermEnter", "BufEnter" }, {
+        group = group,
+        pattern = "term://*",
+        callback = function()
+            vim.wo.relativenumber = false
+            vim.wo.number = false
+            vim.opt_local.signcolumn = "no"
+            apply_terminal_window_style(vim.api.nvim_get_current_win())
+        end,
+    })
+
+    vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
+        group = group,
+        pattern = "*",
+        callback = function(event)
+            if vim.bo[event.buf].buftype == "" then
+                clear_terminal_window_style(vim.api.nvim_get_current_win())
+                -- restore the user's global defaults, not hardcoded values
+                vim.wo.number = vim.go.number
+                vim.wo.relativenumber = vim.go.relativenumber
+            end
+        end,
+    })
+
+    vim.api.nvim_create_autocmd("BufLeave", {
+        group = group,
+        pattern = "term://*",
+        callback = function()
+            vim.cmd.stopinsert()
+        end,
+    })
+
+    vim.api.nvim_create_autocmd("BufEnter", {
+        group = group,
+        pattern = "term://*",
+        callback = function()
+            vim.cmd.startinsert()
+        end,
+    })
 end
 
 function M.setup()
@@ -545,25 +661,26 @@ function M.setup()
         group = group,
         callback = function(event)
             local opts = { buffer = event.buf, silent = true }
+            local mappings = config.opts.terminal.mappings
 
-            vim.keymap.set("n", "i", resume_terminal_input, vim.tbl_extend("force", opts, {
-                desc = "Return to terminal input mode",
-            }))
-            vim.keymap.set("n", "a", resume_terminal_input, vim.tbl_extend("force", opts, {
-                desc = "Return to terminal input mode",
-            }))
-            vim.keymap.set("n", "I", resume_terminal_input, vim.tbl_extend("force", opts, {
-                desc = "Return to terminal input mode",
-            }))
-            vim.keymap.set("n", "A", resume_terminal_input, vim.tbl_extend("force", opts, {
-                desc = "Return to terminal input mode",
-            }))
-            vim.keymap.set("n", "<leader>r", M.rename_current, vim.tbl_extend("force", opts, {
-                desc = "Rename current terminal",
-            }))
+            if mappings.insert_resume then
+                for _, lhs in ipairs({ "i", "a", "I", "A" }) do
+                    vim.keymap.set("n", lhs, resume_terminal_input, vim.tbl_extend("force", opts, {
+                        desc = "Return to terminal input mode",
+                    }))
+                end
+            end
+            if mappings.rename then
+                vim.keymap.set("n", mappings.rename, M.rename_current, vim.tbl_extend("force", opts, {
+                    desc = "Rename current terminal",
+                }))
+            end
         end,
     })
 
+    if config.opts.terminal.style then
+        setup_style(group)
+    end
 end
 
 function M.close_tree_permanently()

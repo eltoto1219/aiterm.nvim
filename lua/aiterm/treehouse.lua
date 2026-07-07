@@ -1,5 +1,6 @@
 local M = {}
 
+local config = require("aiterm.config")
 local process_backend = require("aiterm.process_backend")
 local processes = require("aiterm.processes")
 local ai_sessions = require("aiterm.ai")
@@ -385,7 +386,7 @@ end
 -- plain shell. Never offered on reattach: the shpool session keeps whatever
 -- was running.
 local function offer_agent(bufnr, path)
-    local kinds = { "claude", "codex" }
+    local kinds = ai_sessions.kind_names()
 
     local function focus_terminal()
         if not terminal.is_terminal(bufnr) then
@@ -760,13 +761,22 @@ function M.setup()
         end,
     })
 
-    local map = vim.keymap.set
-    local opts = { silent = true }
-    map("n", "<leader>fa", M.acquire_disposable, vim.tbl_extend("force", opts, { desc = "Treehouse: acquire disposable workspace" }))
-    map("n", "<leader>fl", M.acquire_leased,     vim.tbl_extend("force", opts, { desc = "Treehouse: acquire leased workspace" }))
-    map("n", "<leader>fs", M.status,             vim.tbl_extend("force", opts, { desc = "Treehouse: status" }))
-    map("n", "<leader>fw", M.pick,               vim.tbl_extend("force", opts, { desc = "Treehouse: workspace picker" }))
-    map("n", "<leader>fr", M.return_workspace,   vim.tbl_extend("force", opts, { desc = "Treehouse: return leased workspace" }))
+    local mappings = config.opts.treehouse.mappings
+    if type(mappings) == "table" then
+        local actions = {
+            { mappings.acquire, M.acquire_disposable, "Treehouse: acquire disposable workspace" },
+            { mappings.lease, M.acquire_leased, "Treehouse: acquire leased workspace" },
+            { mappings.status, M.status, "Treehouse: status" },
+            { mappings.pick, M.pick, "Treehouse: workspace picker" },
+            { mappings.return_ws, M.return_workspace, "Treehouse: return leased workspace" },
+        }
+        for _, action in ipairs(actions) do
+            local lhs, fn, desc = action[1], action[2], action[3]
+            if lhs then
+                vim.keymap.set("n", lhs, fn, { silent = true, desc = desc })
+            end
+        end
+    end
 end
 
 return M

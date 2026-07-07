@@ -1,18 +1,28 @@
 local M = {}
 
-local SESSION_PREFIX = "aiterm-process-"
+local config = require("aiterm.config")
+
+local function session_prefix()
+    return config.opts.processes.session_prefix
+end
 
 -- shpool is a pass-through session holder: it keeps the shell alive in a
 -- daemon and forwards raw bytes, so nvim's own terminal emulator owns the
 -- scrollback. On reattach the daemon replays the last N lines
 -- (session_restore_mode in ~/.config/shpool/config.toml) into the buffer.
 local function shpool_path()
+    local configured = config.opts.processes.shpool
+    if configured then
+        return configured
+    end
+
     local path = vim.fn.exepath("shpool")
     if path ~= "" then
         return path
     end
 
-    -- setup.sh installs here; nvim may run before the rc PATH update applies.
+    -- common cargo/user-local install locations nvim may see before the
+    -- shell rc PATH update applies
     for _, candidate in ipairs({ "/.local/bin/shpool", "/.cargo/bin/shpool" }) do
         local full = vim.env.HOME .. candidate
         if vim.fn.executable(full) == 1 then
@@ -28,11 +38,14 @@ function M.available()
 end
 
 function M.notify_missing()
-    vim.notify("shpool is required for persistent terminal processes (run scripts/setup.sh)", vim.log.levels.WARN)
+    vim.notify(
+        "shpool is required for persistent terminal processes (github.com/shell-pool/shpool)",
+        vim.log.levels.WARN
+    )
 end
 
 function M.session_name(display_name)
-    return SESSION_PREFIX .. display_name
+    return session_prefix() .. display_name
 end
 
 function M.command(args)
@@ -70,13 +83,14 @@ function M.managed_sessions()
         return {}
     end
 
+    local prefix = session_prefix()
     local items = {}
     for _, line in ipairs(lines) do
         local session = vim.trim(vim.split(line, "\t")[1] or "")
-        if session and vim.startswith(session, SESSION_PREFIX) then
+        if session and vim.startswith(session, prefix) then
             items[#items + 1] = {
                 session = session,
-                name = session:sub(#SESSION_PREFIX + 1),
+                name = session:sub(#prefix + 1),
             }
         end
     end

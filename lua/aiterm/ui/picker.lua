@@ -67,14 +67,22 @@ function M.select(prompt, labels, on_choice, on_cancel)
         end
     end
 
-    local opts = { buffer = bufnr, silent = true, nowait = true }
-    vim.keymap.set("n", "j", move(1), opts)
-    vim.keymap.set("n", "k", move(-1), opts)
-    vim.keymap.set("n", "<Down>", move(1), opts)
-    vim.keymap.set("n", "<Up>", move(-1), opts)
-    vim.keymap.set("n", "<CR>", choose_current, opts)
-    vim.keymap.set("n", "q", cancel_picker, opts)
-    vim.keymap.set("n", "<Esc>", cancel_picker, opts)
+    local function set_keymaps(lhs, rhs, desc)
+        if not lhs then
+            return
+        end
+        for _, key in ipairs(type(lhs) == "table" and lhs or { lhs }) do
+            vim.keymap.set("n", key, rhs, { buffer = bufnr, silent = true, nowait = true, desc = desc })
+        end
+    end
+
+    local mappings = require("aiterm.config").opts.ui.picker.mappings
+    set_keymaps(mappings.down, move(1), "Picker: next item")
+    set_keymaps(mappings.up, move(-1), "Picker: previous item")
+    set_keymaps("<Down>", move(1), "Picker: next item")
+    set_keymaps("<Up>", move(-1), "Picker: previous item")
+    set_keymaps(mappings.confirm, choose_current, "Picker: select item")
+    set_keymaps(mappings.cancel, cancel_picker, "Picker: cancel")
 
     vim.api.nvim_win_set_cursor(winid, { 1, 0 })
 end

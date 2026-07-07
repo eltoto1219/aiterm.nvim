@@ -1,5 +1,6 @@
 local M = {}
 
+local config = require("aiterm.config")
 local terminal = require("aiterm.terminal")
 local session_overrides = {}
 
@@ -66,7 +67,7 @@ local function render_command(template, filepath)
 end
 
 local function resolved_runner(filetype)
-    return session_overrides[filetype] or default_runners[filetype]
+    return session_overrides[filetype] or config.opts.run.templates[filetype] or default_runners[filetype]
 end
 
 local function current_runner_description()
@@ -99,6 +100,7 @@ local function close_window(win)
 end
 
 function M.configure_popup()
+    local mappings = config.opts.run.popup_mappings
     local filetype = current_filetype()
     local current = current_runner_description()
     local buf = vim.api.nvim_create_buf(false, true)
@@ -112,9 +114,9 @@ function M.configure_popup()
         "filetype: " .. (filetype ~= "" and filetype or "<none>"),
         "current:  " .. current,
         "",
-        "d : use default runner for this filetype",
-        "c : set custom command for this filetype",
-        "q : close without changes",
+        (mappings.default or "-") .. " : use default runner for this filetype",
+        (mappings.custom or "-") .. " : set custom command for this filetype",
+        (mappings.close or "-") .. " : close without changes",
         "",
         "Placeholders: {file} {dir} {name} {stem}",
     }
@@ -135,28 +137,34 @@ function M.configure_popup()
         col = math.max(col, 0),
     })
 
-    vim.keymap.set("n", "q", function()
-        close_window(win)
-    end, { buffer = buf, silent = true })
-
-    vim.keymap.set("n", "d", function()
-        set_override(filetype, nil)
-        close_window(win)
-        vim.notify("Using default runner for " .. filetype)
-    end, { buffer = buf, silent = true })
-
-    vim.keymap.set("n", "c", function()
-        vim.ui.input({
-            prompt = "Custom run command for " .. filetype .. ": ",
-            default = "",
-        }, function(input)
-            if input and input ~= "" then
-                set_override(filetype, input)
-                vim.notify("Saved session runner for " .. filetype)
-            end
+    if mappings.close then
+        vim.keymap.set("n", mappings.close, function()
             close_window(win)
-        end)
-    end, { buffer = buf, silent = true })
+        end, { buffer = buf, silent = true, desc = "Close run config" })
+    end
+
+    if mappings.default then
+        vim.keymap.set("n", mappings.default, function()
+            set_override(filetype, nil)
+            close_window(win)
+            vim.notify("Using default runner for " .. filetype)
+        end, { buffer = buf, silent = true, desc = "Use default runner" })
+    end
+
+    if mappings.custom then
+        vim.keymap.set("n", mappings.custom, function()
+            vim.ui.input({
+                prompt = "Custom run command for " .. filetype .. ": ",
+                default = "",
+            }, function(input)
+                if input and input ~= "" then
+                    set_override(filetype, input)
+                    vim.notify("Saved session runner for " .. filetype)
+                end
+                close_window(win)
+            end)
+        end, { buffer = buf, silent = true, desc = "Set custom runner" })
+    end
 end
 
 local function runnable_command()
