@@ -65,7 +65,7 @@ ai.kinds                 kind -> { args, command? }. `args` extend the
                          No permission-bypassing flags ship by default.
 ai.autostart             Spawn/restore a session on a plain `nvim` launch.
 ai.restore               Load the on-disk registry at startup.
-ai.commands              Generate :Claude/:Codex/... and :AIRestore.
+ai.commands              Generate :Claude/:Codex/... and the :AISession* family.
 processes.enabled        Requires shpool.
 processes.shpool         Binary name or absolute path override.
 processes.session_prefix Prefix for shpool session names.
@@ -100,8 +100,13 @@ inside the dialog itself.
 6. COMMANDS                                                  *aiterm-commands*
 
 :Claude / :Codex / :<Kind>    New AI session of that kind
-:AIRestore                    Restore cached sessions for the cwd
+:AISessions                   Pick a live or cached AI session
+:AISessionNew                 Pick a harness and spawn a fresh session
+:AISessionKill                Kill the current AI session, or pick one
+:AISessionKillAll             Kill every live AI session
+:AISessionRestore             Restore cached sessions for the cwd
 :TerminalRename               Rename the current terminal
+:TerminalRun                  Run the current file with its filetype runner
 :TerminalConfig               Configure the run command for the filetype
 :TerminalProcesses            Pick and attach a persistent session
 :TerminalProcessNew           Create a persistent session
@@ -109,6 +114,11 @@ inside the dialog itself.
 :TerminalProcessKillAll       Kill all persistent sessions
 :TerminalProcessAttachLast    Attach the last-used persistent session
 :TerminalProcessAttachAll     Attach all persistent sessions for the cwd
+:TreehouseWorkspaces          Pick an active treehouse workspace
+:TreehouseAcquire             Acquire a disposable workspace
+:TreehouseLease               Acquire a named leased workspace
+:TreehouseStatus              Show treehouse status
+:TreehouseReturn              Return a leased workspace
 
 ==============================================================================
 7. API                                                            *aiterm-api*

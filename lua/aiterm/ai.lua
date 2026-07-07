@@ -718,7 +718,19 @@ function M.setup()
                 end, { desc = "Open a new " .. kind .. " session in a terminal buffer" })
             end
         end
-        vim.api.nvim_create_user_command("AIRestore", M.restore_here, {
+        vim.api.nvim_create_user_command("AISessions", M.pick, {
+            desc = "Pick a live or cached AI session",
+        })
+        vim.api.nvim_create_user_command("AISessionNew", M.new_session, {
+            desc = "Pick a harness and spawn a fresh AI session",
+        })
+        vim.api.nvim_create_user_command("AISessionKill", M.kill_current_or_select, {
+            desc = "Kill the current AI session, or pick one",
+        })
+        vim.api.nvim_create_user_command("AISessionKillAll", M.kill_all, {
+            desc = "Kill every live AI session",
+        })
+        vim.api.nvim_create_user_command("AISessionRestore", M.restore_here, {
             desc = "Restore cached AI harness sessions born in the current directory",
         })
     end

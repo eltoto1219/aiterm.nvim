@@ -835,6 +835,22 @@ function M.setup()
         end,
     })
 
+    vim.api.nvim_create_user_command("TreehouseWorkspaces", M.pick, {
+        desc = "Pick an active treehouse workspace",
+    })
+    vim.api.nvim_create_user_command("TreehouseAcquire", M.acquire_disposable, {
+        desc = "Acquire a disposable treehouse workspace",
+    })
+    vim.api.nvim_create_user_command("TreehouseLease", M.acquire_leased, {
+        desc = "Acquire a named leased treehouse workspace",
+    })
+    vim.api.nvim_create_user_command("TreehouseStatus", M.status, {
+        desc = "Show treehouse status",
+    })
+    vim.api.nvim_create_user_command("TreehouseReturn", M.return_workspace, {
+        desc = "Return a leased treehouse workspace",
+    })
+
     local mappings = config.opts.treehouse.mappings
     if type(mappings) == "table" then
         local actions = {

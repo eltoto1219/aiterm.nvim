@@ -70,7 +70,7 @@ require("aiterm").setup({
     },
     autostart = false,          -- spawn/restore a session on plain `nvim`
     restore = true,             -- load the on-disk session registry at startup
-    commands = true,            -- :Claude / :Codex (one per kind) and :AIRestore
+    commands = true,            -- :Claude / :Codex (one per kind) and the :AISession* family
     codex_sessions_dir = nil,   -- default: ~/.codex/sessions
   },
   processes = {
@@ -153,10 +153,15 @@ vim.keymap.set("n", "<leader>pp", processes.list, { desc = "Persistent terminals
 | Command | Module | Action |
 |---|---|---|
 | `:Claude`, `:Codex`, ... | ai | New session (one command per configured kind) |
-| `:AIRestore` | ai | Restore cached sessions for the current directory |
+| `:AISessions` | ai | Pick a live or cached session |
+| `:AISessionNew` | ai | Pick a harness and spawn a fresh session |
+| `:AISessionKill` / `:AISessionKillAll` | ai | Kill the current/picked session, or all of them |
+| `:AISessionRestore` | ai | Restore cached sessions for the current directory |
 | `:TerminalRename` | terminal | Rename the current terminal |
+| `:TerminalRun` | run | Run the current file with its filetype runner |
 | `:TerminalConfig` | run | Configure the run command for the current filetype |
 | `:TerminalProcesses`, `:TerminalProcessNew`, `:TerminalProcessKill`, `:TerminalProcessKillAll`, `:TerminalProcessAttachLast`, `:TerminalProcessAttachAll` | processes | Persistent session management |
+| `:TreehouseWorkspaces`, `:TreehouseAcquire`, `:TreehouseLease`, `:TreehouseStatus`, `:TreehouseReturn` | treehouse | Workspace management |
 
 ## Tabline / statusline integration
 

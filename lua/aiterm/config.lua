@@ -38,7 +38,7 @@ M.defaults = {
         },
         autostart = false, -- spawn/restore an AI session on plain `nvim`
         restore = true, -- load the on-disk session registry at startup
-        commands = true, -- :Claude/:Codex (per kind) and :AIRestore
+        commands = true, -- :Claude/:Codex (per kind) and the :AISession* family
         codex_sessions_dir = nil, -- default: ~/.codex/sessions
     },
     processes = {

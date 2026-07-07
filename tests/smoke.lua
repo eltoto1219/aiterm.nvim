@@ -26,9 +26,13 @@ end
 require("aiterm").setup({})
 local commands = vim.api.nvim_get_commands({})
 assert(commands.TerminalRename, "terminal command registered")
-assert(commands.Claude and commands.Codex and commands.AIRestore, "ai commands registered")
-assert(commands.TerminalConfig, "run command registered")
+assert(commands.Claude and commands.Codex, "per-kind ai commands registered")
+for _, name in ipairs({ "AISessions", "AISessionNew", "AISessionKill", "AISessionKillAll", "AISessionRestore" }) do
+    assert(commands[name], name .. " registered")
+end
+assert(commands.TerminalConfig and commands.TerminalRun, "run commands registered")
 assert(commands.TerminalProcesses == nil, "processes stay opt-in")
+assert(commands.TreehouseWorkspaces == nil, "treehouse stays opt-in")
 
 -- Safe defaults: no permission-bypassing flags unless opted in.
 local ai = require("aiterm.ai")
@@ -55,6 +59,15 @@ require("aiterm").setup({
 })
 commands = vim.api.nvim_get_commands({})
 assert(commands.TerminalProcesses and commands.TerminalProcessNew, "processes commands registered when enabled")
+for _, name in ipairs({
+    "TreehouseWorkspaces",
+    "TreehouseAcquire",
+    "TreehouseLease",
+    "TreehouseStatus",
+    "TreehouseReturn",
+}) do
+    assert(commands[name], name .. " registered when treehouse enabled")
+end
 assert(commands.Myharness, "custom kind gets a generated command")
 claude_argv = table.concat(ai.commands.claude(nil, false), " ")
 assert(claude_argv:find("--dangerously-skip-permissions", 1, true), "opted-in claude args applied")
