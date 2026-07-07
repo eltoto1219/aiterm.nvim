@@ -1,11 +1,11 @@
 local M = {}
 
-local process_backend = require("eltoto.process_backend")
-local processes = require("eltoto.processes")
-local ai_sessions = require("eltoto.ai_sessions")
-local terminal = require("eltoto.terminal")
-local ui_input = require("eltoto.ui.input")
-local ui_picker = require("eltoto.ui.picker")
+local process_backend = require("aiterm.process_backend")
+local processes = require("aiterm.processes")
+local ai_sessions = require("aiterm.ai")
+local terminal = require("aiterm.terminal")
+local ui_input = require("aiterm.ui.input")
+local ui_picker = require("aiterm.ui.picker")
 
 local TH_PREFIX = "th:"
 
@@ -233,7 +233,7 @@ local function is_th_session(name)
 end
 
 local function buffer_session(bufnr)
-    local tagged = vim.b[bufnr].eltoto_treehouse_session
+    local tagged = vim.b[bufnr].aiterm_treehouse_session
     if type(tagged) == "string" and is_th_session(tagged) then
         return tagged
     end
@@ -371,7 +371,7 @@ local function open_session(display_name, path, create)
         end
         return false
     end
-    vim.b[bufnr].eltoto_treehouse_session = display_name
+    vim.b[bufnr].aiterm_treehouse_session = display_name
     terminal.configure_persistent_buffer(bufnr, display_name)
     if path then
         processes.register_session_cwd(display_name, path)
@@ -747,7 +747,7 @@ function M.refresh_all_git_caches()
 end
 
 function M.setup()
-    local group = vim.api.nvim_create_augroup("EltotoTreehouse", { clear = true })
+    local group = vim.api.nvim_create_augroup("AitermTreehouse", { clear = true })
 
     -- refresh git cache whenever a treehouse buffer is entered
     vim.api.nvim_create_autocmd("BufEnter", {

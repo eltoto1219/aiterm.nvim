@@ -1,6 +1,6 @@
 local M = {}
 
-local SESSION_PREFIX = "eltoto-process-"
+local SESSION_PREFIX = "aiterm-process-"
 
 -- shpool is a pass-through session holder: it keeps the shell alive in a
 -- daemon and forwards raw bytes, so nvim's own terminal emulator owns the

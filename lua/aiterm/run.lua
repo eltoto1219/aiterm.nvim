@@ -1,6 +1,6 @@
 local M = {}
 
-local terminal = require("eltoto.terminal")
+local terminal = require("aiterm.terminal")
 local session_overrides = {}
 
 local default_runners = {

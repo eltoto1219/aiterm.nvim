@@ -31,7 +31,7 @@ function M.select(prompt, labels, on_choice, on_cancel)
 
     vim.bo[bufnr].bufhidden = "wipe"
     vim.bo[bufnr].modifiable = false
-    vim.bo[bufnr].filetype = "eltoto_picker"
+    vim.bo[bufnr].filetype = "aiterm_picker"
 
     local function close_picker()
         if vim.api.nvim_win_is_valid(winid) then

@@ -1,15 +1,15 @@
 local M = {}
 
-local buffers = require("eltoto.buffers")
-local process_backend = require("eltoto.process_backend")
-local terminal = require("eltoto.terminal")
-local ui_input = require("eltoto.ui.input")
-local ui_picker = require("eltoto.ui.picker")
+local buffers = require("aiterm.buffers")
+local process_backend = require("aiterm.process_backend")
+local terminal = require("aiterm.terminal")
+local ui_input = require("aiterm.ui.input")
+local ui_picker = require("aiterm.ui.picker")
 
 local last_session_name = nil
 
 local function last_session_path()
-    local dir = vim.fs.joinpath(vim.fn.stdpath("state"), "eltoto")
+    local dir = vim.fs.joinpath(vim.fn.stdpath("state"), "aiterm")
     vim.fn.mkdir(dir, "p")
     return vim.fs.joinpath(dir, "last_persistent_process")
 end
@@ -45,7 +45,7 @@ local function load_last_session_name()
 end
 
 local function cwd_map_path()
-    local dir = vim.fs.joinpath(vim.fn.stdpath("state"), "eltoto")
+    local dir = vim.fs.joinpath(vim.fn.stdpath("state"), "aiterm")
     vim.fn.mkdir(dir, "p")
     return vim.fs.joinpath(dir, "process_cwds.json")
 end
@@ -360,7 +360,7 @@ function M.kill_all()
 end
 
 function M.setup()
-    vim.api.nvim_create_augroup("EltotoPersistentProcesses", { clear = true })
+    vim.api.nvim_create_augroup("AitermPersistentProcesses", { clear = true })
 
     vim.api.nvim_create_user_command("TerminalProcesses", M.list, {
         desc = "List and attach managed persistent terminal processes",

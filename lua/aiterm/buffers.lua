@@ -117,12 +117,12 @@ function M.nearest_ai_buf(exclude)
     end
     for _, i in ipairs(pos and { pos - 1, pos + 1 } or {}) do
         local bufnr = all_terms[i]
-        if bufnr and vim.b[bufnr].eltoto_ai_kind ~= nil then
+        if bufnr and vim.b[bufnr].aiterm_ai_kind ~= nil then
             return bufnr
         end
     end
     for _, bufnr in ipairs(all_terms) do
-        if bufnr ~= exclude and vim.b[bufnr].eltoto_ai_kind ~= nil then
+        if bufnr ~= exclude and vim.b[bufnr].aiterm_ai_kind ~= nil then
             return bufnr
         end
     end
@@ -305,10 +305,10 @@ function M.quit_current_or_window()
 
     local function previous_terminal_buffer()
         -- Prefer a terminal of the same kind (AI vs plain) as the one closing.
-        local current_is_ai = vim.b[current].eltoto_ai_kind ~= nil
+        local current_is_ai = vim.b[current].aiterm_ai_kind ~= nil
         local same_kind = {}
         for _, bufnr in ipairs(terms) do
-            if (vim.b[bufnr].eltoto_ai_kind ~= nil) == current_is_ai then
+            if (vim.b[bufnr].aiterm_ai_kind ~= nil) == current_is_ai then
                 same_kind[#same_kind + 1] = bufnr
             end
         end
@@ -322,7 +322,7 @@ function M.quit_current_or_window()
         local has_other = #terms > 1
         if not has_other then
             for _, bufnr in ipairs(terms) do
-                if bufnr ~= current and vim.b[bufnr].eltoto_ai_kind ~= nil then
+                if bufnr ~= current and vim.b[bufnr].aiterm_ai_kind ~= nil then
                     has_other = true
                     break
                 end
@@ -363,7 +363,7 @@ function M.quit_current_or_window()
 end
 
 function M.setup()
-    local group = vim.api.nvim_create_augroup("EltotoBufferState", { clear = true })
+    local group = vim.api.nvim_create_augroup("AitermBufferState", { clear = true })
 
     vim.api.nvim_create_autocmd("BufEnter", {
         group = group,

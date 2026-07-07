@@ -1,6 +1,6 @@
 local M = {}
-local terminal = require("eltoto.terminal")
-local colors = require("eltoto.ui.colors")
+local terminal = require("aiterm.terminal")
+local colors = require("aiterm.ui.colors")
 local augroup = nil
 
 local function set_hl(name, opts)
@@ -28,7 +28,7 @@ local function regular_buffers()
 end
 
 local function is_ai_buffer(bufnr)
-	return vim.b[bufnr].eltoto_ai_kind ~= nil
+	return vim.b[bufnr].aiterm_ai_kind ~= nil
 end
 
 -- AI harness buffers are terminals too, but they get their own tabline
@@ -92,31 +92,31 @@ function M.setup_highlights()
 	local inactive_fg = tabline.fg or normal.fg
 	local active_fg = tabline_sel.fg or normal.fg
 
-	set_hl("EltotoTablineFileActive", {
+	set_hl("AitermTablineFileActive", {
 		fg = active_fg,
 		bg = active_bg,
 		bold = true,
 		italic = tabline_sel.italic,
 	})
-	set_hl("EltotoTablineFileInactive", {
+	set_hl("AitermTablineFileInactive", {
 		fg = inactive_fg,
 		bg = inactive_bg,
 		bold = tabline.bold,
 		italic = tabline.italic,
 	})
-	set_hl("EltotoTablineTermActive", {
+	set_hl("AitermTablineTermActive", {
 		fg = active_fg,
 		bg = active_bg,
 		bold = true,
 		italic = tabline_sel.italic,
 	})
-	set_hl("EltotoTablineTermInactive", {
+	set_hl("AitermTablineTermInactive", {
 		fg = inactive_fg,
 		bg = inactive_bg,
 		bold = tabline.bold,
 		italic = tabline.italic,
 	})
-	set_hl("EltotoTablineSeparator", {
+	set_hl("AitermTablineSeparator", {
 		fg = tabline_fill.fg or inactive_fg,
 		bg = separator_bg,
 	})
@@ -127,7 +127,7 @@ function M.register_autocmds()
 		return
 	end
 
-	augroup = vim.api.nvim_create_augroup("EltotoTablineHighlights", { clear = true })
+	augroup = vim.api.nvim_create_augroup("AitermTablineHighlights", { clear = true })
 
 	vim.api.nvim_create_autocmd({ "ColorScheme", "VimEnter" }, {
 		group = augroup,
@@ -168,15 +168,15 @@ function M.component()
 		local hl_group
 
 		if current_is_term then
-			hl_group = is_active and "EltotoTablineTermActive" or "EltotoTablineTermInactive"
+			hl_group = is_active and "AitermTablineTermActive" or "AitermTablineTermInactive"
 		else
-			hl_group = is_active and "EltotoTablineFileActive" or "EltotoTablineFileInactive"
+			hl_group = is_active and "AitermTablineFileActive" or "AitermTablineFileInactive"
 		end
 
 		items[#items + 1] = render_segment(label, hl_group)
 	end
 
-	return table.concat(items, "%#EltotoTablineSeparator#|%*")
+	return table.concat(items, "%#AitermTablineSeparator#|%*")
 end
 
 return M

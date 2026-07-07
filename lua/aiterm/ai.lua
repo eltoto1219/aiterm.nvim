@@ -1,6 +1,6 @@
 local M = {}
 
-local terminal = require("eltoto.terminal")
+local terminal = require("aiterm.terminal")
 
 -- Registry of AI harness sessions (claude, codex) running in plain terminal
 -- buffers. Identity is pinned at spawn time: claude via --session-id, codex by
@@ -81,7 +81,7 @@ function M.ensure_available(kind)
 end
 
 local function registry_path()
-    local dir = vim.fs.joinpath(vim.fn.stdpath("state"), "eltoto")
+    local dir = vim.fs.joinpath(vim.fn.stdpath("state"), "aiterm")
     vim.fn.mkdir(dir, "p")
     return vim.fs.joinpath(dir, "ai_sessions.json")
 end
@@ -420,7 +420,7 @@ function M.open(kind, cwd)
 end
 
 function M.is_ai_buffer(bufnr)
-    return buffer_alive(bufnr) and vim.b[bufnr].eltoto_ai_kind ~= nil
+    return buffer_alive(bufnr) and vim.b[bufnr].aiterm_ai_kind ~= nil
 end
 
 local function live_ai_buffers()
@@ -469,7 +469,7 @@ function M.toggle()
     if M.is_ai_buffer(current) then
         local target = toggle_return_bufnr
         if not (target and vim.api.nvim_buf_is_valid(target) and vim.fn.buflisted(target) == 1 and not M.is_ai_buffer(target)) then
-            target = require("eltoto.buffers").get_edit_return_buf()
+            target = require("aiterm.buffers").get_edit_return_buf()
         end
         if target then
             pcall(vim.api.nvim_set_current_buf, target)
@@ -495,7 +495,7 @@ function M.new_session()
     end
 
     local kinds = { "claude", "codex" }
-    require("eltoto.ui.picker").select("New AI session:", kinds, function(index)
+    require("aiterm.ui.picker").select("New AI session:", kinds, function(index)
         M.open(kinds[index])
     end)
 end
@@ -566,7 +566,7 @@ function M.pick()
         end
     end
 
-    require("eltoto.ui.picker").select("AI sessions:", labels, function(index)
+    require("aiterm.ui.picker").select("AI sessions:", labels, function(index)
         local current = vim.api.nvim_get_current_buf()
         if not M.is_ai_buffer(current) then
             toggle_return_bufnr = current
@@ -606,7 +606,7 @@ local function kill_buffer(bufnr)
     local label = terminal.label_for_buf(bufnr) or vim.fs.basename(vim.api.nvim_buf_get_name(bufnr))
 
     if bufnr == vim.api.nvim_get_current_buf() then
-        local target = require("eltoto.buffers").get_edit_return_buf()
+        local target = require("aiterm.buffers").get_edit_return_buf()
         if target then
             pcall(vim.api.nvim_set_current_buf, target)
         end
@@ -643,7 +643,7 @@ function M.kill_current_or_select()
         labels[i] = string.format("%2d. %s", i, label)
     end
 
-    require("eltoto.ui.picker").select("Kill AI session:", labels, function(index)
+    require("aiterm.ui.picker").select("Kill AI session:", labels, function(index)
         local bufnr = live[index]
         if M.is_ai_buffer(bufnr) then
             vim.notify("Killed AI session '" .. kill_buffer(bufnr) .. "'")
@@ -671,14 +671,14 @@ end
 local function should_autostart()
     return vim.fn.argc() == 0
         and #vim.api.nvim_list_uis() > 0
-        and not vim.g.eltoto_reading_stdin
-        and not vim.g.eltoto_disable_ai_autostart
+        and not vim.g.aiterm_reading_stdin
+        and not vim.g.aiterm_disable_ai_autostart
 end
 
 function M.setup()
     load_registry()
 
-    local group = vim.api.nvim_create_augroup("EltotoAISessions", { clear = true })
+    local group = vim.api.nvim_create_augroup("AitermAISessions", { clear = true })
 
     vim.api.nvim_create_user_command("Claude", function()
         M.open("claude")
@@ -693,7 +693,7 @@ function M.setup()
     vim.api.nvim_create_autocmd("StdinReadPre", {
         group = group,
         callback = function()
-            vim.g.eltoto_reading_stdin = true
+            vim.g.aiterm_reading_stdin = true
         end,
     })
 
@@ -755,11 +755,11 @@ function M.setup()
                 else
                     -- Prefer an adjacent AI buffer; handles both the normal case and
                     -- the case where nvim auto-switched away before this callback ran.
-                    local bufmod = require("eltoto.buffers")
+                    local bufmod = require("aiterm.buffers")
                     local ai_target = bufmod.nearest_ai_buf(event.buf)
                     if ai_target then
                         local cur = vim.api.nvim_get_current_buf()
-                        if cur == event.buf or vim.b[cur].eltoto_ai_kind == nil then
+                        if cur == event.buf or vim.b[cur].aiterm_ai_kind == nil then
                             pcall(vim.api.nvim_set_current_buf, ai_target)
                             vim.cmd.startinsert()
                         end

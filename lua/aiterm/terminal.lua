@@ -1,7 +1,7 @@
 local M = {}
-local env = require("eltoto.env")
-local buffers = require("eltoto.buffers")
-local ui_input = require("eltoto.ui.input")
+local env = require("aiterm.env")
+local buffers = require("aiterm.buffers")
+local ui_input = require("aiterm.ui.input")
 
 local last_terminal_bufnr = nil
 local custom_labels = {}
@@ -173,7 +173,7 @@ function M.open_command(command, label, opts)
     -- Tagged before termopen so the TermOpen/BufEnter autocmds firing inside
     -- it already see this as an AI buffer (e.g. last-terminal tracking).
     if opts and opts.ai_kind then
-        vim.b[bufnr].eltoto_ai_kind = opts.ai_kind
+        vim.b[bufnr].aiterm_ai_kind = opts.ai_kind
     end
 
     local job_opts = { env = env.terminal_env() }
@@ -193,7 +193,7 @@ end
 local function plain_terminal_buffers()
     local terms = {}
     for _, bufnr in ipairs(M.buffers()) do
-        if vim.b[bufnr].eltoto_ai_kind == nil then
+        if vim.b[bufnr].aiterm_ai_kind == nil then
             terms[#terms + 1] = bufnr
         end
     end
@@ -245,7 +245,7 @@ function M.toggle()
     local current = vim.api.nvim_get_current_buf()
     local terms = plain_terminal_buffers()
 
-    if M.is_terminal(current) and vim.b[current].eltoto_ai_kind == nil then
+    if M.is_terminal(current) and vim.b[current].aiterm_ai_kind == nil then
         local target = buffers.get_edit_return_buf()
         if target then
             if not safe_switch_buffer(target) then
@@ -254,7 +254,7 @@ function M.toggle()
             restore_tree_for_file()
         else
             -- no file to return to; check for an AI buffer (lazy require avoids circular dep)
-            local ok, ai = pcall(require, "eltoto.ai_sessions")
+            local ok, ai = pcall(require, "aiterm.ai")
             if ok and ai.get_last_ai_buf then
                 local ai_buf = ai.get_last_ai_buf()
                 if ai_buf and safe_switch_buffer(ai_buf) then
@@ -289,11 +289,11 @@ end
 
 local function cycle(offset)
     local current = vim.api.nvim_get_current_buf()
-    local current_is_ai = vim.b[current].eltoto_ai_kind ~= nil
+    local current_is_ai = vim.b[current].aiterm_ai_kind ~= nil
     local all = M.buffer_info()
     local terms = {}
     for _, item in ipairs(all) do
-        local item_is_ai = vim.b[item.bufnr].eltoto_ai_kind ~= nil
+        local item_is_ai = vim.b[item.bufnr].aiterm_ai_kind ~= nil
         if item_is_ai == current_is_ai then
             terms[#terms + 1] = item
         end
@@ -338,7 +338,7 @@ end
 local function wipe_unlisted_name_holder(name, keep_bufnr)
     local absolute_name = vim.fn.fnamemodify(name, ":p")
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-        if buf ~= keep_bufnr and vim.b[buf].eltoto_terminal_name_holder then
+        if buf ~= keep_bufnr and vim.b[buf].aiterm_terminal_name_holder then
             local bufname = vim.api.nvim_buf_get_name(buf)
             if bufname == name or bufname == absolute_name then
                 pcall(vim.api.nvim_buf_delete, buf, { force = false })
@@ -381,7 +381,7 @@ function M.refresh_names()
                         and vim.fn.buflisted(buf) == 0
                         and vim.api.nvim_buf_get_name(buf) == current
                     then
-                        vim.b[buf].eltoto_terminal_name_holder = true
+                        vim.b[buf].aiterm_terminal_name_holder = true
                     end
                 end
                 wipe_unlisted_name_holder(current, bufinfo.bufnr)
@@ -478,7 +478,7 @@ function M.configure_persistent_buffer(bufnr, session_name)
         return
     end
 
-    vim.b[bufnr].eltoto_process_name = session_name
+    vim.b[bufnr].aiterm_process_name = session_name
 
     -- shpool passes raw bytes through, so nvim's terminal emulator owns the
     -- history: native motions, search, visual mode, and yank work directly.
@@ -500,7 +500,7 @@ function M.persistent_process_name(bufnr)
         return nil
     end
 
-    local name = vim.b[bufnr].eltoto_process_name
+    local name = vim.b[bufnr].aiterm_process_name
     return type(name) == "string" and name ~= "" and name or nil
 end
 
@@ -516,7 +516,7 @@ function M.find_persistent_buffer(session_name)
 end
 
 function M.setup()
-    local group = vim.api.nvim_create_augroup("EltotoTerminalState", { clear = true })
+    local group = vim.api.nvim_create_augroup("AitermTerminalState", { clear = true })
 
     vim.api.nvim_create_user_command("TerminalRename", M.rename_current, {
         desc = "Rename a terminal while preserving persistent prefixes",
@@ -530,7 +530,7 @@ function M.setup()
             elseif M.is_terminal(event.buf) then
                 -- AI harness buffers have their own toggle (<leader>m); keep
                 -- <leader>t pointed at the last plain terminal.
-                if vim.b[event.buf].eltoto_ai_kind == nil then
+                if vim.b[event.buf].aiterm_ai_kind == nil then
                     last_terminal_bufnr = event.buf
                 end
                 hide_tree_for_terminal()
