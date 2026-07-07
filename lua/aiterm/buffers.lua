@@ -183,7 +183,12 @@ end
 
 function M.alternate()
     local current = vim.api.nvim_get_current_buf()
-    if last_bufnr and vim.api.nvim_buf_is_valid(last_bufnr) and vim.fn.buflisted(last_bufnr) == 1 and last_bufnr ~= current then
+    if
+        last_bufnr
+        and vim.api.nvim_buf_is_valid(last_bufnr)
+        and vim.fn.buflisted(last_bufnr) == 1
+        and last_bufnr ~= current
+    then
         safe_switch_current_window_buffer(last_bufnr)
         return
     end

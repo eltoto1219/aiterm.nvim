@@ -242,25 +242,26 @@ function M.new()
                 title = " Startup Command ",
                 prompt = "Command: ",
             }, function(command_input)
-            local startup_command = command_input and vim.trim(command_input) or ""
+                local startup_command = command_input and vim.trim(command_input) or ""
 
-            if session_exists(name) then
-                vim.notify("Persistent process '" .. name .. "' already exists", vim.log.levels.WARN)
-                attach({ session = process_backend.session_name(name), name = name })
-                return
-            end
+                if session_exists(name) then
+                    vim.notify("Persistent process '" .. name .. "' already exists", vim.log.levels.WARN)
+                    attach({ session = process_backend.session_name(name), name = name })
+                    return
+                end
 
-            -- shpool creates missing sessions on attach; the startup command
-            -- goes straight to the terminal's pty once the shell is up.
-            local bufnr = attach({ session = process_backend.session_name(name), name = name }, vim.fn.getcwd(), true)
+                -- shpool creates missing sessions on attach; the startup command
+                -- goes straight to the terminal's pty once the shell is up.
+                local bufnr =
+                    attach({ session = process_backend.session_name(name), name = name }, vim.fn.getcwd(), true)
 
-            if startup_command ~= "" and bufnr then
-                vim.defer_fn(function()
-                    if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].channel ~= 0 then
-                        vim.api.nvim_chan_send(vim.bo[bufnr].channel, startup_command .. "\r")
-                    end
-                end, 300)
-            end
+                if startup_command ~= "" and bufnr then
+                    vim.defer_fn(function()
+                        if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].channel ~= 0 then
+                            vim.api.nvim_chan_send(vim.bo[bufnr].channel, startup_command .. "\r")
+                        end
+                    end, 300)
+                end
             end)
         end)
     end)

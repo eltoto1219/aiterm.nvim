@@ -393,7 +393,8 @@ function M.refresh_names()
             end
             if pcall(vim.api.nvim_buf_set_name, bufinfo.bufnr, desired) then
                 for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-                    if not existing_buffers[buf]
+                    if
+                        not existing_buffers[buf]
                         and vim.fn.buflisted(buf) == 0
                         and vim.api.nvim_buf_get_name(buf) == current
                     then
@@ -665,15 +666,25 @@ function M.setup()
 
             if mappings.insert_resume then
                 for _, lhs in ipairs({ "i", "a", "I", "A" }) do
-                    vim.keymap.set("n", lhs, resume_terminal_input, vim.tbl_extend("force", opts, {
-                        desc = "Return to terminal input mode",
-                    }))
+                    vim.keymap.set(
+                        "n",
+                        lhs,
+                        resume_terminal_input,
+                        vim.tbl_extend("force", opts, {
+                            desc = "Return to terminal input mode",
+                        })
+                    )
                 end
             end
             if mappings.rename then
-                vim.keymap.set("n", mappings.rename, M.rename_current, vim.tbl_extend("force", opts, {
-                    desc = "Rename current terminal",
-                }))
+                vim.keymap.set(
+                    "n",
+                    mappings.rename,
+                    M.rename_current,
+                    vim.tbl_extend("force", opts, {
+                        desc = "Rename current terminal",
+                    })
+                )
             end
         end,
     })

@@ -9,8 +9,8 @@ local terminal = require("aiterm.terminal")
 -- they are removed only when a session is quit naturally (process exit or
 -- buffer close inside nvim), so whatever remains is restorable.
 
-local entries = {}   -- key -> entry { key, kind, id, cwd, title, last_used }
-local buffers = {}   -- bufnr -> key
+local entries = {} -- key -> entry { key, kind, id, cwd, title, last_used }
+local buffers = {} -- bufnr -> key
 local pending_resumes = {}
 local unnamed_counter = 0
 local exiting = false
@@ -147,10 +147,12 @@ local function generate_uuid()
 
     math.randomseed(vim.uv.hrtime())
     local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
-    return (template:gsub("[xy]", function(c)
-        local v = c == "x" and math.random(0, 15) or math.random(8, 11)
-        return string.format("%x", v)
-    end))
+    return (
+        template:gsub("[xy]", function(c)
+            local v = c == "x" and math.random(0, 15) or math.random(8, 11)
+            return string.format("%x", v)
+        end)
+    )
 end
 
 local function clean_title(title)
@@ -276,23 +278,27 @@ local function watch_codex_title(bufnr, key)
             return
         end
 
-        vim.system({ "python3", "-c", codex_title_query, db, entry.id }, { text = true }, vim.schedule_wrap(function(result)
-            local title = clean_title(vim.trim(result.stdout or ""))
-            entry = entries[key]
-            if title and entry and not entry.title then
-                entry.title = title
-                if buffer_alive(bufnr) then
-                    terminal.set_label(bufnr, title)
+        vim.system(
+            { "python3", "-c", codex_title_query, db, entry.id },
+            { text = true },
+            vim.schedule_wrap(function(result)
+                local title = clean_title(vim.trim(result.stdout or ""))
+                entry = entries[key]
+                if title and entry and not entry.title then
+                    entry.title = title
+                    if buffer_alive(bufnr) then
+                        terminal.set_label(bufnr, title)
+                    end
+                    save_registry()
+                    return
                 end
-                save_registry()
-                return
-            end
 
-            attempts = attempts + 1
-            if attempts < 200 and not exiting then
-                vim.defer_fn(poll, 3000)
-            end
-        end))
+                attempts = attempts + 1
+                if attempts < 200 and not exiting then
+                    vim.defer_fn(poll, 3000)
+                end
+            end)
+        )
     end
 
     vim.defer_fn(poll, 3000)
@@ -471,7 +477,14 @@ function M.toggle()
 
     if M.is_ai_buffer(current) then
         local target = toggle_return_bufnr
-        if not (target and vim.api.nvim_buf_is_valid(target) and vim.fn.buflisted(target) == 1 and not M.is_ai_buffer(target)) then
+        if
+            not (
+                target
+                and vim.api.nvim_buf_is_valid(target)
+                and vim.fn.buflisted(target) == 1
+                and not M.is_ai_buffer(target)
+            )
+        then
             target = require("aiterm.buffers").get_edit_return_buf()
         end
         if target then
@@ -507,7 +520,8 @@ local function restorable_entries(scope_cwd)
     local scope = scope_cwd and vim.fs.normalize(scope_cwd) or nil
     local list = {}
     for key, entry in pairs(entries) do
-        if not entry_is_alive(key)
+        if
+            not entry_is_alive(key)
             and entry_is_restorable(entry)
             and (not scope or vim.fs.normalize(entry.cwd or "") == scope)
         then

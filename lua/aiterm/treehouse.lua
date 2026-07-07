@@ -22,22 +22,20 @@ local git_cache = {}
 local function run_git(path, args, callback, stdin)
     local command = { "git", "-C", path }
     vim.list_extend(command, args)
-    vim.system(
-        command,
-        { text = true, stdin = stdin },
-        function(result)
-            vim.schedule(function()
-                if result.code == 0 then
-                    callback(result.stdout or "")
-                    return
-                end
+    vim.system(command, { text = true, stdin = stdin }, function(result)
+        vim.schedule(function()
+            if result.code == 0 then
+                callback(result.stdout or "")
+                return
+            end
 
-                local detail = vim.trim(result.stderr or "")
-                if detail == "" then detail = "exit code " .. result.code end
-                callback(nil, detail)
-            end)
-        end
-    )
+            local detail = vim.trim(result.stderr or "")
+            if detail == "" then
+                detail = "exit code " .. result.code
+            end
+            callback(nil, detail)
+        end)
+    end)
 end
 
 local function git_status(path, callback)
@@ -96,13 +94,17 @@ local function default_branch_ref(path, callback)
             end
             local branch = branch_ref:sub(#"refs/heads/" + 1)
             local remote_ref = "refs/remotes/origin/" .. branch
-            run_git(path, { "fetch", "--no-tags", "origin", "+" .. branch_ref .. ":" .. remote_ref }, function(_, fetch_detail)
-                if fetch_detail then
-                    callback(nil, fetch_detail)
-                    return
+            run_git(
+                path,
+                { "fetch", "--no-tags", "origin", "+" .. branch_ref .. ":" .. remote_ref },
+                function(_, fetch_detail)
+                    if fetch_detail then
+                        callback(nil, fetch_detail)
+                        return
+                    end
+                    callback(remote_ref)
                 end
-                callback(remote_ref)
-            end)
+            )
         end)
     end)
 end
@@ -185,43 +187,56 @@ local function workspace_snapshot(path, callback)
                             callback(nil, log_detail)
                             return
                         end
-                        run_git(path, { "diff", "--no-ext-diff", "--no-textconv", "--binary", "--cached", "HEAD" }, function(staged, staged_detail)
-                            if not staged then
-                                callback(nil, staged_detail)
-                                return
-                            end
-                            run_git(path, { "diff", "--no-ext-diff", "--no-textconv", "--binary" }, function(unstaged, unstaged_detail)
-                                if not unstaged then
-                                    callback(nil, unstaged_detail)
+                        run_git(
+                            path,
+                            { "diff", "--no-ext-diff", "--no-textconv", "--binary", "--cached", "HEAD" },
+                            function(staged, staged_detail)
+                                if not staged then
+                                    callback(nil, staged_detail)
                                     return
                                 end
-                                run_git(path, { "ls-files", "--others", "--exclude-standard", "-z" }, function(raw_files, files_detail)
-                                    if not raw_files then
-                                        callback(nil, files_detail)
-                                        return
-                                    end
-                                    local files = vim.split(raw_files, "\0", { plain = true, trimempty = true })
-                                    hash_untracked(path, files, function(untracked, hash_detail)
-                                        if not untracked then
-                                            callback(nil, hash_detail)
+                                run_git(
+                                    path,
+                                    { "diff", "--no-ext-diff", "--no-textconv", "--binary" },
+                                    function(unstaged, unstaged_detail)
+                                        if not unstaged then
+                                            callback(nil, unstaged_detail)
                                             return
                                         end
-                                        callback({
-                                            status = status,
-                                            base_ref = base_ref,
-                                            commits = commits,
-                                            fingerprint = table.concat({
-                                                vim.trim(head),
-                                                vim.trim(base),
-                                                staged,
-                                                unstaged,
-                                                untracked,
-                                            }, "\0"),
-                                        })
-                                    end)
-                                end)
-                            end)
-                        end)
+                                        run_git(
+                                            path,
+                                            { "ls-files", "--others", "--exclude-standard", "-z" },
+                                            function(raw_files, files_detail)
+                                                if not raw_files then
+                                                    callback(nil, files_detail)
+                                                    return
+                                                end
+                                                local files =
+                                                    vim.split(raw_files, "\0", { plain = true, trimempty = true })
+                                                hash_untracked(path, files, function(untracked, hash_detail)
+                                                    if not untracked then
+                                                        callback(nil, hash_detail)
+                                                        return
+                                                    end
+                                                    callback({
+                                                        status = status,
+                                                        base_ref = base_ref,
+                                                        commits = commits,
+                                                        fingerprint = table.concat({
+                                                            vim.trim(head),
+                                                            vim.trim(base),
+                                                            staged,
+                                                            unstaged,
+                                                            untracked,
+                                                        }, "\0"),
+                                                    })
+                                                end)
+                                            end
+                                        )
+                                    end
+                                )
+                            end
+                        )
                     end)
                 end)
             end)
@@ -256,11 +271,15 @@ end
 
 local function refresh_git_cache(display_name)
     local path = workspace_paths[display_name]
-    if not path then return end
+    if not path then
+        return
+    end
     vim.system({ "git", "-C", path, "branch", "--show-current" }, { text = true }, function(br)
         local branch = vim.trim(br.stdout or "")
         git_status(path, function(status)
-            if workspace_paths[display_name] ~= path then return end
+            if workspace_paths[display_name] ~= path then
+                return
+            end
             if not status then
                 git_cache[display_name] = nil
                 return
@@ -322,16 +341,20 @@ local function quiesce_session(display_name, callback)
         return
     end
 
-    vim.system(process_backend.command({ "kill", process_backend.session_name(display_name) }), { text = true }, function(result)
-        vim.schedule(function()
-            if result.code == 0 then
-                callback(true)
-                return
-            end
-            local detail = vim.trim((result.stdout or "") .. (result.stderr or ""))
-            callback(nil, detail ~= "" and detail or "exit code " .. result.code)
-        end)
-    end)
+    vim.system(
+        process_backend.command({ "kill", process_backend.session_name(display_name) }),
+        { text = true },
+        function(result)
+            vim.schedule(function()
+                if result.code == 0 then
+                    callback(true)
+                    return
+                end
+                local detail = vim.trim((result.stdout or "") .. (result.stderr or ""))
+                callback(nil, detail ~= "" and detail or "exit code " .. result.code)
+            end)
+        end
+    )
 end
 
 local function open_session(display_name, path, create)
@@ -430,19 +453,28 @@ local function finish_acquisition(display_name, path)
     end
 
     vim.system({ "treehouse", "return", "--force", path }, { text = true }, function(result)
-        if result.code == 0 then return end
+        if result.code == 0 then
+            return
+        end
         vim.schedule(function()
-            vim.notify("treehouse: failed to release unused lease: " .. vim.trim(result.stderr or ""), vim.log.levels.ERROR)
+            vim.notify(
+                "treehouse: failed to release unused lease: " .. vim.trim(result.stderr or ""),
+                vim.log.levels.ERROR
+            )
         end)
     end)
 end
 
 -- <leader>fa — quick disposable lease, auto-named
 function M.acquire_disposable()
-    if not treehouse_available() or not backend_available() then return end
+    if not treehouse_available() or not backend_available() then
+        return
+    end
 
     local display_name = next_disposable_name()
-    if not reserve_session(display_name) then return end
+    if not reserve_session(display_name) then
+        return
+    end
     vim.system({ "treehouse", "get", "--lease" }, { text = true }, function(result)
         vim.schedule(function()
             if result.code ~= 0 then
@@ -463,15 +495,23 @@ end
 
 -- <leader>fl — named leased workspace
 function M.acquire_leased()
-    if not treehouse_available() or not backend_available() then return end
+    if not treehouse_available() or not backend_available() then
+        return
+    end
 
     ui_input.centered({ title = " Treehouse Task ", prompt = "Task name: " }, function(input)
-        if not input then return end
+        if not input then
+            return
+        end
         local name = vim.trim(input)
-        if name == "" then return end
+        if name == "" then
+            return
+        end
 
         local display_name = TH_PREFIX .. name
-        if not reserve_session(display_name) then return end
+        if not reserve_session(display_name) then
+            return
+        end
         local args = { "treehouse", "get", "--lease", "--lease-holder", name }
         vim.system(args, { text = true }, function(result)
             vim.schedule(function()
@@ -494,7 +534,9 @@ end
 
 -- <leader>fs — treehouse status float
 function M.status()
-    if not treehouse_available() then return end
+    if not treehouse_available() then
+        return
+    end
 
     vim.system({ "treehouse", "status" }, { text = true }, function(result)
         vim.schedule(function()
@@ -521,7 +563,9 @@ function M.status()
             })
             vim.wo[win].wrap = false
             vim.keymap.set("n", "q", function()
-                if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
+                if vim.api.nvim_win_is_valid(win) then
+                    vim.api.nvim_win_close(win, true)
+                end
             end, { buffer = buf, silent = true })
         end)
     end)
@@ -554,12 +598,17 @@ end
 
 -- <leader>fr — return leased workspace; shows git status, requires confirm
 function M.return_workspace()
-    if not treehouse_available() then return end
+    if not treehouse_available() then
+        return
+    end
 
     local function do_return(display_name)
         local path = workspace_paths[display_name]
         if not path then
-            vim.notify("treehouse: path unknown for " .. display_name .. " (use <leader>fs to check)", vim.log.levels.WARN)
+            vim.notify(
+                "treehouse: path unknown for " .. display_name .. " (use <leader>fs to check)",
+                vim.log.levels.WARN
+            )
             return
         end
 
@@ -615,7 +664,9 @@ function M.return_workspace()
                 vim.wo[win].wrap = false
 
                 local function close()
-                    if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
+                    if vim.api.nvim_win_is_valid(win) then
+                        vim.api.nvim_win_close(win, true)
+                    end
                 end
 
                 local opts = { buffer = buf, silent = true, nowait = true }
@@ -623,12 +674,17 @@ function M.return_workspace()
                 vim.keymap.set("n", "<Esc>", close, opts)
                 local checking = false
                 vim.keymap.set("n", "r", function()
-                    if checking then return end
+                    if checking then
+                        return
+                    end
                     checking = true
                     workspace_snapshot(path, function(current_snapshot, current_detail)
                         if not current_snapshot then
                             checking = false
-                            vim.notify("treehouse: failed to inspect workspace: " .. current_detail, vim.log.levels.ERROR)
+                            vim.notify(
+                                "treehouse: failed to inspect workspace: " .. current_detail,
+                                vim.log.levels.ERROR
+                            )
                             return
                         end
                         close()
@@ -640,16 +696,25 @@ function M.return_workspace()
 
                         quiesce_session(display_name, function(quiesced, quiesce_detail)
                             if not quiesced then
-                                vim.notify("treehouse: failed to stop workspace session: " .. quiesce_detail, vim.log.levels.ERROR)
+                                vim.notify(
+                                    "treehouse: failed to stop workspace session: " .. quiesce_detail,
+                                    vim.log.levels.ERROR
+                                )
                                 return
                             end
                             workspace_snapshot(path, function(final_snapshot, final_detail)
                                 if not final_snapshot then
-                                    vim.notify("treehouse: failed to inspect quiesced workspace: " .. final_detail, vim.log.levels.ERROR)
+                                    vim.notify(
+                                        "treehouse: failed to inspect quiesced workspace: " .. final_detail,
+                                        vim.log.levels.ERROR
+                                    )
                                     return
                                 end
                                 if final_snapshot.fingerprint ~= current_snapshot.fingerprint then
-                                    vim.notify("treehouse: workspace changed while stopping its session; review the updated state", vim.log.levels.WARN)
+                                    vim.notify(
+                                        "treehouse: workspace changed while stopping its session; review the updated state",
+                                        vim.log.levels.WARN
+                                    )
                                     inspect_and_confirm()
                                     return
                                 end
@@ -657,7 +722,10 @@ function M.return_workspace()
                                 vim.system({ "treehouse", "return", "--force", path }, { text = true }, function(result)
                                     vim.schedule(function()
                                         if result.code ~= 0 then
-                                            vim.notify("treehouse return failed: " .. vim.trim(result.stderr or ""), vim.log.levels.ERROR)
+                                            vim.notify(
+                                                "treehouse return failed: " .. vim.trim(result.stderr or ""),
+                                                vim.log.levels.ERROR
+                                            )
                                             return
                                         end
                                         workspace_paths[display_name] = nil
@@ -705,7 +773,9 @@ function M.return_workspace()
         labels[i] = string.format("%2d. %s", i, item.name:sub(#TH_PREFIX + 1))
     end
     ui_picker.select("Return which workspace?", labels, function(index)
-        if sessions[index] then do_return(sessions[index].name) end
+        if sessions[index] then
+            do_return(sessions[index].name)
+        end
     end)
 end
 
@@ -713,7 +783,9 @@ end
 -- loading, or nil when the buffer is not in a workspace.
 function M.current_buf_branch()
     local display_name = buffer_session(vim.api.nvim_get_current_buf())
-    if not display_name then return nil end
+    if not display_name then
+        return nil
+    end
     local cached = git_cache[display_name]
     return cached and cached.branch or "?"
 end
@@ -729,7 +801,9 @@ end
 -- returns "" when not in a treehouse buffer so it takes no space
 function M.statusline()
     local display_name = buffer_session(vim.api.nvim_get_current_buf())
-    if not display_name then return "" end
+    if not display_name then
+        return ""
+    end
 
     local task = display_name:sub(#TH_PREFIX + 1)
     local cached = git_cache[display_name]

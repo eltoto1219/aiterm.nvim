@@ -45,7 +45,10 @@ function M.check()
         if backend.available() then
             health.ok("shpool available")
         else
-            health.error("shpool not found", "install it from github.com/shell-pool/shpool or set opts.processes.shpool")
+            health.error(
+                "shpool not found",
+                "install it from github.com/shell-pool/shpool or set opts.processes.shpool"
+            )
         end
     end
 
