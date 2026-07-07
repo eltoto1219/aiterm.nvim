@@ -1,0 +1,149 @@
+*aiterm.txt*    Terminal-first workflow suite built around AI coding agents
+
+Author:  eltoto1219
+License: MIT
+
+==============================================================================
+CONTENTS                                                     *aiterm-contents*
+
+  1. Introduction ................................. |aiterm-introduction|
+  2. Setup ........................................ |aiterm-setup|
+  3. Modules ...................................... |aiterm-modules|
+  4. Options ...................................... |aiterm-options|
+  5. Keymaps ...................................... |aiterm-keymaps|
+  6. Commands ..................................... |aiterm-commands|
+  7. API .......................................... |aiterm-api|
+  8. Health ....................................... |aiterm-health|
+
+==============================================================================
+1. INTRODUCTION                                          *aiterm-introduction*
+
+aiterm.nvim manages terminal buffers, AI harness sessions (claude, codex, or
+custom), persistent shpool-backed shells, and leased git worktrees, all as
+opt-in modules of one plugin. AI session identity is pinned at spawn time so
+sessions survive nvim exits and crashes and can be restored later.
+
+==============================================================================
+2. SETUP                                                        *aiterm-setup*
+
+>lua
+  require("aiterm").setup({})
+<
+Only the terminal, buffers, ai, and run modules are active by default.
+Enable processes/treehouse/tabline explicitly (see |aiterm-options|).
+
+==============================================================================
+3. MODULES                                                    *aiterm-modules*
+
+terminal    Toggle/cycle/rename plain terminal buffers; prompt-jump motions;
+            window styling for terminals. Always on.
+buffers     File-vs-terminal navigation, last-edit tracking, smart quit.
+ai          Registry of AI harness sessions in terminal buffers with
+            crash-safe restore. Kinds are configurable.
+processes   Named persistent shells backed by the shpool daemon. Opt-in.
+treehouse   Leased git worktrees via the treehouse CLI, one shpool session
+            per workspace, agent offered on acquisition. Opt-in.
+run         Filetype-aware run-current-file with per-session overrides.
+tabline     lualine tabline component grouping file/terminal/AI buffers.
+            Opt-in.
+
+==============================================================================
+4. OPTIONS                                                    *aiterm-options*
+
+Defaults shown in the README and `lua/aiterm/config.lua` (the single source
+of truth). Highlights:
+
+terminal.style           Terminal styling autocmds on/off.
+terminal.background      Number or "#rrggbb" painted under terminals; must
+                         match the OSC 11 color nvim reports. false disables.
+terminal.env             table | fun():table merged over the launch environ
+                         for every spawned terminal.
+terminal.mappings        See |aiterm-keymaps|. Any key false to disable.
+ai.kinds                 kind -> { args, command? }. `args` extend the
+                         built-in claude/codex launchers; `command(entry,
+                         resume)` returning argv defines a custom harness.
+                         No permission-bypassing flags ship by default.
+ai.autostart             Spawn/restore a session on a plain `nvim` launch.
+ai.restore               Load the on-disk registry at startup.
+ai.commands              Generate :Claude/:Codex/... and :AIRestore.
+processes.enabled        Requires shpool.
+processes.shpool         Binary name or absolute path override.
+processes.session_prefix Prefix for shpool session names.
+treehouse.enabled        Requires treehouse CLI (+ shpool).
+treehouse.mappings       false, or a table of global maps (see below).
+run.templates            filetype -> template with {file} {dir} {name}
+                         {stem} placeholders.
+tabline.enabled          Registers highlights/autocmds for the component.
+ui.picker.mappings       Keys inside picker floats.
+
+==============================================================================
+5. KEYMAPS                                                    *aiterm-keymaps*
+
+No global keymaps are created by default. Every mapping the plugin can
+create is configurable and carries a `desc`:
+
+  terminal.mappings.prompt_prev = "[a"    prompt jump backwards (terminals)
+  terminal.mappings.prompt_next = "]a"    prompt jump forwards (terminals)
+  terminal.mappings.rename = "<leader>r"  rename terminal (terminals)
+  terminal.mappings.insert_resume = true  i/a/I/A resume input (terminals)
+  terminal.mappings.persistent_esc = true <Esc> leaves input (persistent)
+  ui.picker.mappings                      j/k/<CR>/q/<Esc> in pickers
+  run.popup_mappings                      d/c/q in the run-config float
+  treehouse.mappings = {                  global, disabled by default
+    acquire = ..., lease = ..., status = ..., pick = ..., return_ws = ...,
+  }
+
+The treehouse return-confirmation float uses fixed `r`/`q` keys, displayed
+inside the dialog itself.
+
+==============================================================================
+6. COMMANDS                                                  *aiterm-commands*
+
+:Claude / :Codex / :<Kind>    New AI session of that kind
+:AIRestore                    Restore cached sessions for the cwd
+:TerminalRename               Rename the current terminal
+:TerminalConfig               Configure the run command for the filetype
+:TerminalProcesses            Pick and attach a persistent session
+:TerminalProcessNew           Create a persistent session
+:TerminalProcessKill          Kill a persistent session
+:TerminalProcessKillAll       Kill all persistent sessions
+:TerminalProcessAttachLast    Attach the last-used persistent session
+:TerminalProcessAttachAll     Attach all persistent sessions for the cwd
+
+==============================================================================
+7. API                                                            *aiterm-api*
+
+require("aiterm.terminal")
+  toggle() open_new() forward() backward() ensure() rename_current()
+  is_terminal(bufnr) buffers() buffer_info() label_for_buf(bufnr)
+  set_label(bufnr, label) open_command(cmd, label, opts)
+
+require("aiterm.ai")
+  toggle() new_session() pick() open(kind, cwd) restore_here()
+  kill_current_or_select() kill_all() kind_names() is_ai_buffer(bufnr)
+
+require("aiterm.buffers")
+  forward() backward() alternate() quit_current_or_window()
+
+require("aiterm.processes")
+  list() new() attach_last() attach_all_cwd() kill_current_or_select()
+  kill_all() current_process_name(bufnr)
+
+require("aiterm.treehouse")
+  acquire_disposable() acquire_leased() status() pick() return_workspace()
+  statusline() current_buf_branch() current_buf_workspace_path(bufnr)
+
+require("aiterm.tabline")
+  component()   -- lualine tabline component
+
+require("aiterm.ui.picker")
+  select(prompt, labels, on_choice, on_cancel)
+
+==============================================================================
+8. HEALTH                                                      *aiterm-health*
+
+`:checkhealth aiterm` reports the state dir, optional integrations, and the
+binaries required by each enabled module (claude/codex per configured kind,
+shpool, treehouse, git).
+
+vim:tw=78:ts=8:noet:ft=help:norl:
