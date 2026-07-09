@@ -31,7 +31,19 @@ vim.env.XDG_STATE_HOME = state
 vim.env.PATH = bin .. ":" .. vim.env.PATH
 vim.opt.rtp:prepend(root)
 
-require("aiterm").setup({ ai = { autostart = false, restore = false } })
+require("aiterm").setup({
+    ai = {
+        autostart = false,
+        restore = false,
+        kinds = {
+            codex = {
+                command = function()
+                    return { "sh", fake_codex }
+                end,
+            },
+        },
+    },
+})
 
 local bufnr = require("aiterm.ai").open("codex", cwd)
 assert(bufnr and vim.api.nvim_buf_is_valid(bufnr), "fake Codex session opened")

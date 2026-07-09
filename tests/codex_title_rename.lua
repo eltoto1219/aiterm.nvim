@@ -40,7 +40,7 @@ require("aiterm").setup({
             codex = {
                 args = {},
                 command = function()
-                    return { "codex" }
+                    return { "sh", vim.fs.joinpath(bin, "codex") }
                 end,
             },
         },

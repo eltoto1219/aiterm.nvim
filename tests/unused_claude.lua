@@ -29,7 +29,19 @@ vim.env.HOME = home
 vim.env.PATH = bin .. ":" .. vim.env.PATH
 vim.opt.rtp:prepend(root)
 
-require("aiterm").setup({ ai = { autostart = false, restore = false } })
+require("aiterm").setup({
+    ai = {
+        autostart = false,
+        restore = false,
+        kinds = {
+            claude = {
+                command = function()
+                    return { "sh", fake_claude }
+                end,
+            },
+        },
+    },
+})
 
 local ai = require("aiterm.ai")
 local bufnr = ai.open("claude", cwd)
