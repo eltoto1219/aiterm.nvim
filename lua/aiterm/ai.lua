@@ -14,6 +14,7 @@ local entries = {} -- key -> entry { key, kind, id, cwd, title, last_used }
 local buffers = {} -- bufnr -> key
 local pending_resumes = {}
 local codex_spawn_times = {}
+local claimed_codex_rollouts = {}
 local unnamed_counter = 0
 local exiting = false
 local quitting = false
@@ -402,17 +403,30 @@ local function watch_codex_title(bufnr, key)
     vim.defer_fn(poll, 3000)
 end
 
-local function newest_codex_rollout(min_mtime)
+local function newest_codex_rollout(min_mtime, key)
     local newest_path, newest_time = nil, min_mtime or 0
 
     for _, path in ipairs(vim.fn.globpath(M.codex_sessions_dir, "**/rollout-*.jsonl", true, true)) do
         local mtime = vim.fn.getftime(path)
-        if mtime > newest_time then
+        if mtime > newest_time and (claimed_codex_rollouts[path] == nil or claimed_codex_rollouts[path] == key) then
             newest_path, newest_time = path, mtime
         end
     end
 
     return newest_path
+end
+
+local function claim_codex_id(key, min_mtime)
+    local path = newest_codex_rollout(min_mtime, key)
+    if not path then
+        return nil
+    end
+
+    local id = path:match(uuid_pattern)
+    if id then
+        claimed_codex_rollouts[path] = key
+    end
+    return id
 end
 
 local function watch_codex_id(bufnr, key, spawn_time)
@@ -424,8 +438,7 @@ local function watch_codex_id(bufnr, key, spawn_time)
             return
         end
 
-        local path = newest_codex_rollout(spawn_time - 1)
-        local id = path and path:match(uuid_pattern) or nil
+        local id = claim_codex_id(key, spawn_time - 1)
         if id then
             entry.id = id
             save_registry()
@@ -450,8 +463,7 @@ local function capture_codex_id_for_buffer(bufnr)
     end
 
     local spawn_time = codex_spawn_times[key] or entry.last_used or os.time()
-    local path = newest_codex_rollout(spawn_time - 1)
-    local id = path and path:match(uuid_pattern) or nil
+    local id = claim_codex_id(key, spawn_time - 1)
     if id then
         entry.id = id
     end

@@ -2,6 +2,7 @@ local M = {}
 local terminal = require("aiterm.terminal")
 local colors = require("aiterm.ui.colors")
 local augroup = nil
+local last_context_winid = nil
 
 local function set_hl(name, opts)
     vim.api.nvim_set_hl(0, name, opts)
@@ -29,6 +30,38 @@ end
 
 local function is_ai_buffer(bufnr)
     return vim.b[bufnr].aiterm_ai_kind ~= nil
+end
+
+local function is_normal_window(winid)
+    local ok, config = pcall(vim.api.nvim_win_get_config, winid)
+    return ok and config.relative == ""
+end
+
+local function remember_context_window(winid)
+    if vim.api.nvim_win_is_valid(winid) and is_normal_window(winid) then
+        last_context_winid = winid
+    end
+end
+
+local function context_bufnr()
+    local current_winid = vim.api.nvim_get_current_win()
+    if is_normal_window(current_winid) then
+        remember_context_window(current_winid)
+        return vim.api.nvim_win_get_buf(current_winid)
+    end
+
+    if last_context_winid and vim.api.nvim_win_is_valid(last_context_winid) then
+        return vim.api.nvim_win_get_buf(last_context_winid)
+    end
+
+    for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+        if is_normal_window(winid) then
+            remember_context_window(winid)
+            return vim.api.nvim_win_get_buf(winid)
+        end
+    end
+
+    return vim.api.nvim_get_current_buf()
 end
 
 -- AI harness buffers are terminals too, but they get their own tabline
@@ -141,10 +174,17 @@ function M.register_autocmds()
             end
         end,
     })
+
+    vim.api.nvim_create_autocmd({ "BufEnter", "WinEnter" }, {
+        group = augroup,
+        callback = function()
+            remember_context_window(vim.api.nvim_get_current_win())
+        end,
+    })
 end
 
 function M.component()
-    local current = vim.api.nvim_get_current_buf()
+    local current = context_bufnr()
     local current_is_term = vim.bo[current].buftype == "terminal"
     local current_is_ai = current_is_term and is_ai_buffer(current)
     local buffers
