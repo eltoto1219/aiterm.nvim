@@ -317,6 +317,7 @@ sections = {
 
 Companion plugins and user config can register providers before or after `setup()`.
 The initial public provider types are `ai`, `process`, `workspace`, and `picker_action`.
+See [CONTRIBUTING.md](CONTRIBUTING.md#provider-api) for the longer guide to writing and validating providers.
 
 AI providers participate in `:AISessionNew`, generated `:<Kind>` commands, autostart selection, health checks, and session spawning:
 
@@ -335,7 +336,29 @@ require("aiterm").register_provider("ai", "goose", {
 })
 ```
 
+AI provider specs support:
+
+| Field | Required | Description |
+|---|---:|---|
+| `command(entry, resume)` | yes | Returns the argv list used to spawn or resume the terminal command |
+| `executable` | no | Binary checked by health and availability checks |
+| `prepare_workspace(cwd)` | no | Runs before spawning the AI terminal in a workspace |
+
+`command()` should return a list like `{ "goose", "session" }`, not a shell string.
+The `entry` argument contains the AI session metadata, including `kind`, `cwd`, `id`, `key`, and display title fields when available.
+The `resume` argument is true when aiterm is restoring or resuming an existing session.
+
 Use `require("aiterm").providers("ai")` or `require("aiterm.providers").names("ai")` to inspect registered providers.
+Pass `{ replace = true }` as the fourth argument when intentionally replacing an existing provider.
+
+```lua
+require("aiterm").register_provider("ai", "goose", spec, { replace = true })
+```
+
+`process`, `workspace`, and `picker_action` providers are validated registry extension points for integrations.
+Process providers may define `list()` and `attach()`.
+Workspace providers may define `pick()` and `statusline()`.
+Picker action providers must define `run(selection)`.
 
 ## API highlights
 
