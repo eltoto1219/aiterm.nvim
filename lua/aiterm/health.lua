@@ -44,12 +44,22 @@ function M.check()
     if opts.ai.enabled then
         health.start("aiterm: ai sessions")
         local ai = require("aiterm.ai")
+        local providers = require("aiterm.providers")
         for _, kind in ipairs(ai.kind_names()) do
+            local provider = providers.get("ai", kind)
             local spec = opts.ai.kinds[kind]
-            if type(spec) == "table" and type(spec.command) == "function" then
+            if provider and provider.executable == nil then
+                health.info("AI provider '" .. kind .. "' configured without an executable check")
+            elseif type(spec) == "table" and type(spec.command) == "function" then
                 health.info("custom command configured for AI kind '" .. kind .. "'; binary cannot be verified")
             else
-                binary(health, kind, true, "install " .. kind .. " or disable/remove AI kind '" .. kind .. "'")
+                local executable = provider and provider.executable or kind
+                binary(
+                    health,
+                    executable,
+                    true,
+                    "install " .. executable .. " or disable/remove AI kind '" .. kind .. "'"
+                )
             end
         end
         health.info("codex sessions dir: " .. ai.codex_sessions_dir)

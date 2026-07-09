@@ -10,6 +10,7 @@ local modules = {
     "aiterm.buffers",
     "aiterm.processes",
     "aiterm.process_backend",
+    "aiterm.providers",
     "aiterm.treehouse",
     "aiterm.run",
     "aiterm.tabline",

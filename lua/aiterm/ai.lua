@@ -1,6 +1,7 @@
 local M = {}
 
 local config = require("aiterm.config")
+local providers = require("aiterm.providers")
 local terminal = require("aiterm.terminal")
 
 -- Registry of AI harness sessions (claude, codex) running in plain terminal
@@ -55,15 +56,31 @@ M.commands = {
     end,
 }
 
+local function ai_provider(kind)
+    return providers.get("ai", kind)
+end
+
+local function command_builder(kind)
+    local provider = ai_provider(kind)
+    return provider and provider.command or M.commands[kind]
+end
+
 -- Configured kind names, sorted; drives pickers and generated commands.
 function M.kind_names()
-    local names = vim.tbl_keys(config.opts.ai.kinds)
+    local seen = {}
+    for name in pairs(config.opts.ai.kinds) do
+        seen[name] = true
+    end
+    for _, name in ipairs(providers.names("ai")) do
+        seen[name] = true
+    end
+    local names = vim.tbl_keys(seen)
     table.sort(names)
     return names
 end
 
 function M.shell_command(kind)
-    local builder = M.commands[kind]
+    local builder = command_builder(kind)
     if not builder then
         return nil
     end
@@ -73,13 +90,15 @@ function M.shell_command(kind)
 end
 
 function M.ensure_available(kind)
-    if not M.commands[kind] then
+    local provider = ai_provider(kind)
+    if not command_builder(kind) then
         vim.notify("Unknown AI harness: " .. tostring(kind), vim.log.levels.ERROR)
         return false
     end
 
-    if vim.fn.executable(kind) ~= 1 then
-        vim.notify(kind .. " is not installed or not on PATH", vim.log.levels.ERROR)
+    local executable = provider and provider.executable or kind
+    if executable and vim.fn.executable(executable) ~= 1 then
+        vim.notify(executable .. " is not installed or not on PATH", vim.log.levels.ERROR)
         return false
     end
 
@@ -102,7 +121,7 @@ local function load_registry()
     end
 
     for _, entry in ipairs(decoded) do
-        if type(entry) == "table" and type(entry.key) == "string" and M.commands[entry.kind] then
+        if type(entry) == "table" and type(entry.key) == "string" and command_builder(entry.kind) then
             entries[entry.key] = entry
         end
     end
@@ -461,7 +480,10 @@ local function trust_claude_workspace(cwd)
 end
 
 function M.prepare_workspace(kind, cwd)
-    if kind == "claude" then
+    local provider = ai_provider(kind)
+    if provider and provider.prepare_workspace then
+        provider.prepare_workspace(cwd)
+    elseif kind == "claude" then
         trust_claude_workspace(cwd)
     end
 end
@@ -469,8 +491,8 @@ end
 local function spawn(entry, resume)
     M.prepare_workspace(entry.kind, entry.cwd)
 
-    local command = M.commands[entry.kind](entry, resume)
-    local bufnr = terminal.open_command(command, entry_label(entry), { cwd = entry.cwd, ai_kind = entry.kind })
+    local argv = command_builder(entry.kind)(entry, resume)
+    local bufnr = terminal.open_command(argv, entry_label(entry), { cwd = entry.cwd, ai_kind = entry.kind })
     if not bufnr then
         return nil
     end
@@ -788,19 +810,23 @@ end
 function M.autostart_kind()
     local preferred = config.opts.ai.autostart_kind
     if type(preferred) == "string" and preferred ~= "" then
-        if not M.commands[preferred] then
+        if not command_builder(preferred) then
             vim.notify("Unknown AI autostart harness: " .. preferred, vim.log.levels.ERROR)
             return nil
         end
-        if vim.fn.executable(preferred) ~= 1 then
-            vim.notify(preferred .. " is not installed or not on PATH", vim.log.levels.ERROR)
+        local provider = ai_provider(preferred)
+        local executable = provider and provider.executable or preferred
+        if executable and vim.fn.executable(executable) ~= 1 then
+            vim.notify(executable .. " is not installed or not on PATH", vim.log.levels.ERROR)
             return nil
         end
         return preferred
     end
 
     for _, kind in ipairs(M.kind_names()) do
-        if M.commands[kind] and vim.fn.executable(kind) == 1 then
+        local provider = ai_provider(kind)
+        local executable = provider and provider.executable or kind
+        if command_builder(kind) and (not executable or vim.fn.executable(executable) == 1) then
             return kind
         end
     end
@@ -809,10 +835,30 @@ end
 function M.setup()
     quitting = false
 
+    providers.register("ai", "claude", {
+        command = M.commands.claude,
+        executable = "claude",
+        prepare_workspace = trust_claude_workspace,
+    }, { replace = true })
+    providers.register("ai", "codex", {
+        command = M.commands.codex,
+        executable = "codex",
+    }, { replace = true })
+
     -- Custom harnesses: opts.ai.kinds.<name>.command replaces the launcher.
     for kind, spec in pairs(config.opts.ai.kinds) do
         if type(spec) == "table" and type(spec.command) == "function" then
             M.commands[kind] = spec.command
+            providers.register("ai", kind, {
+                command = spec.command,
+                executable = spec.executable,
+            }, { replace = true })
+        elseif M.commands[kind] then
+            providers.register("ai", kind, {
+                command = M.commands[kind],
+                executable = kind,
+                prepare_workspace = kind == "claude" and trust_claude_workspace or nil,
+            }, { replace = true })
         end
     end
 
@@ -828,7 +874,7 @@ function M.setup()
 
     if config.opts.ai.commands then
         for _, kind in ipairs(M.kind_names()) do
-            if M.commands[kind] then
+            if command_builder(kind) then
                 vim.api.nvim_create_user_command(kind:sub(1, 1):upper() .. kind:sub(2), function()
                     M.open(kind)
                 end, { desc = "Open a new " .. kind .. " session in a terminal buffer" })

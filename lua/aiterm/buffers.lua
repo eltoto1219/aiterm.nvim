@@ -320,7 +320,7 @@ function M.quit_current_or_window()
         return
     end
 
-    local target = nil
+    local target
 
     local function previous_real_buffer()
         for index, bufinfo in ipairs(real) do

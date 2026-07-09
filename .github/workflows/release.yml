@@ -1,0 +1,25 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+jobs:
+  luarocks-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: LuaRocks upload
+        uses: lumen-oss/luarocks-tag-release@v7
+        env:
+          LUAROCKS_API_KEY: ${{ secrets.LUAROCKS_API_KEY }}
+        with:
+          summary: "Terminal-first workflow suite for Neovim, built around AI coding agents."
+          detailed_description: |
+            aiterm.nvim manages terminal buffers, AI harness sessions, persistent shpool-backed shells,
+            leased treehouse workspaces, run-current-file commands, and tabline integration as opt-in modules.
+          copy_directories: |
+            doc
+            lua

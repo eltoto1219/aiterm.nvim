@@ -10,6 +10,7 @@ A terminal-first workflow suite for Neovim, built around AI coding agents.
 - **Run current file**: filetype-aware run command sent to your terminal, configurable per session.
 - **Tabline** (opt-in): a lualine tabline component that shows file buffers, plain terminals, or AI sessions depending on where you are.
 - **Buffers**: file-vs-terminal navigation and a quit key that does the right thing for windows, buffers, and terminals.
+- **Providers**: a small public registry for companion plugins or user config to add AI harnesses, process providers, workspace providers, and picker actions.
 
 Everything is one plugin with opt-in modules.
 The plugin does not install external binaries or optional UI plugins for you.
@@ -312,6 +313,30 @@ sections = {
 },
 ```
 
+## Provider API
+
+Companion plugins and user config can register providers before or after `setup()`.
+The initial public provider types are `ai`, `process`, `workspace`, and `picker_action`.
+
+AI providers participate in `:AISessionNew`, generated `:<Kind>` commands, autostart selection, health checks, and session spawning:
+
+```lua
+require("aiterm").register_provider("ai", "goose", {
+  command = function(entry, resume)
+    if resume and entry and entry.id then
+      return { "goose", "resume", entry.id }
+    end
+    return { "goose", "session" }
+  end,
+  executable = "goose",
+  prepare_workspace = function(cwd)
+    -- Optional hook before spawning the terminal.
+  end,
+})
+```
+
+Use `require("aiterm").providers("ai")` or `require("aiterm.providers").names("ai")` to inspect registered providers.
+
 ## API highlights
 
 - `require("aiterm.terminal")`: `toggle`, `open_new`, `forward`, `backward`, `ensure`, `rename_current`
@@ -319,13 +344,24 @@ sections = {
 - `require("aiterm.buffers")`: `forward`, `backward`, `alternate`, `quit_current_or_window`
 - `require("aiterm.processes")`: `list`, `new`, `attach_last`, `attach_all_cwd`, `kill_current_or_select`, `kill_all`
 - `require("aiterm.treehouse")`: `acquire_disposable`, `acquire_leased`, `status`, `pick`, `return_workspace`, `statusline`
-- `require("aiterm.ui.picker").select(prompt, labels, on_choice, on_cancel?)`: dependency-free centered picker
+- `require("aiterm.ui.picker").select(prompt, labels, on_choice, on_cancel?)`: dependency-free searchable picker
+- `require("aiterm").register_provider(type, name, spec, opts?)`: register an extension provider
 
 See `:help aiterm` for the full reference.
 
 ## State
 
 Session registries live in `stdpath("state")/aiterm/`.
+
+## Development
+
+```sh
+make format-check
+make lint
+make test
+```
+
+CI runs formatting, `luacheck`, and the full headless test suite on stable and nightly Neovim across Linux, macOS, and Windows.
 
 ## License
 

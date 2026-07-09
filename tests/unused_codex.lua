@@ -16,10 +16,10 @@ local fake_codex = vim.fs.joinpath(bin, "codex")
 vim.fn.writefile({
     "#!/bin/sh",
     'mkdir -p "$HOME/.codex/sessions/2026/07/08"',
-    ('echo \'{"type":"session_meta","payload":{"id":"%s"}}\' > "$HOME/.codex/sessions/2026/07/08/rollout-2026-07-08T12-00-00-%s.jsonl"'):format(
-        session_id,
-        session_id
-    ),
+    (
+        'echo \'{"type":"session_meta","payload":{"id":"%s"}}\''
+        .. ' > "$HOME/.codex/sessions/2026/07/08/rollout-2026-07-08T12-00-00-%s.jsonl"'
+    ):format(session_id, session_id),
     "sleep 30",
 }, fake_codex)
 vim.fn.setfperm(fake_codex, "rwxr-xr-x")

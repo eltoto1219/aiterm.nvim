@@ -16,18 +16,22 @@ local winid = vim.api.nvim_get_current_win()
 local bufnr = vim.api.nvim_win_get_buf(winid)
 local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
-assert(lines[1] == "1. Alpha", "first picker item is numbered")
-assert(lines[2] == "2. Beta", "second picker item is numbered")
-assert(lines[3] == "3. Gamma", "third picker item is numbered")
-assert(vim.wo[winid].cursorline, "picker highlights the selected line")
+assert(lines[1] == "Search: ", "picker exposes a search prompt")
+assert(lines[3] == "1. Alpha", "first picker item is numbered")
+assert(lines[4] == "2. Beta", "second picker item is numbered")
+assert(lines[5] == "3. Gamma", "third picker item is numbered")
 assert(
     (vim.wo[winid].winhighlight or ""):find("CursorLine:AitermPickerSelected", 1, true),
     "picker uses its selected-line highlight"
 )
 
-vim.api.nvim_win_set_cursor(winid, { 2, 0 })
+vim.api.nvim_buf_set_lines(bufnr, 0, 1, false, { "Search: gm" })
+vim.api.nvim_exec_autocmds("TextChanged", { buffer = bufnr })
+lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+assert(lines[3] == "3. Gamma", "picker filters with fuzzy matching")
+
 vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "x", false)
 
-assert(selected == 2, "picker selection returns the original item index")
+assert(selected == 3, "picker selection returns the original item index")
 
 print("picker OK")

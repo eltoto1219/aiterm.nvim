@@ -79,13 +79,13 @@ function M.is_terminal(bufnr)
 end
 
 function M.buffers()
-    local buffers = {}
+    local terminal_buffers = {}
 
     for _, bufinfo in ipairs(listed_terminal_buffers()) do
-        buffers[#buffers + 1] = bufinfo.bufnr
+        terminal_buffers[#terminal_buffers + 1] = bufinfo.bufnr
     end
 
-    return buffers
+    return terminal_buffers
 end
 
 function M.buffer_info()

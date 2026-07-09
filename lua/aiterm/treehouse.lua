@@ -1,6 +1,5 @@
 local M = {}
 
-local config = require("aiterm.config")
 local process_backend = require("aiterm.process_backend")
 local processes = require("aiterm.processes")
 local ai_sessions = require("aiterm.ai")
@@ -711,10 +710,9 @@ function M.return_workspace()
                                     return
                                 end
                                 if final_snapshot.fingerprint ~= current_snapshot.fingerprint then
-                                    vim.notify(
-                                        "treehouse: workspace changed while stopping its session; review the updated state",
-                                        vim.log.levels.WARN
-                                    )
+                                    local message = "treehouse: workspace changed while stopping its session; "
+                                        .. "review the updated state"
+                                    vim.notify(message, vim.log.levels.WARN)
                                     inspect_and_confirm()
                                     return
                                 end
@@ -756,9 +754,9 @@ function M.return_workspace()
     for _, item in ipairs(sessions) do
         included[item.name] = true
     end
-    for display_name in pairs(workspace_paths) do
-        if is_th_session(display_name) and not included[display_name] then
-            sessions[#sessions + 1] = { name = display_name }
+    for extra_display_name in pairs(workspace_paths) do
+        if is_th_session(extra_display_name) and not included[extra_display_name] then
+            sessions[#sessions + 1] = { name = extra_display_name }
         end
     end
     table.sort(sessions, function(a, b)

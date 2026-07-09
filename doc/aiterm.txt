@@ -13,7 +13,8 @@ CONTENTS                                                     *aiterm-contents*
   5. Keymaps ...................................... |aiterm-keymaps|
   6. Commands ..................................... |aiterm-commands|
   7. API .......................................... |aiterm-api|
-  8. Health ....................................... |aiterm-health|
+  8. Providers .................................... |aiterm-providers|
+  9. Health ....................................... |aiterm-health|
 
 ==============================================================================
 1. INTRODUCTION                                          *aiterm-introduction*
@@ -54,6 +55,9 @@ treehouse   Leased git worktrees via the treehouse CLI, one shpool session
 run         Filetype-aware run-current-file with per-session overrides.
 tabline     lualine tabline component grouping file/terminal/AI buffers.
             Opt-in.
+providers   Public registry used by companion plugins or user config to add
+            AI harnesses, process providers, workspace providers, and picker
+            actions.
 
 ==============================================================================
 4. OPTIONS                                                    *aiterm-options*
@@ -105,7 +109,7 @@ create is configurable and carries a `desc`:
   mappings.terminal.rename = "<leader>r"  rename terminal (terminals)
   mappings.terminal.insert_resume         i/a/I/A resume input; preserves input cursor unless on the live input row
   mappings.terminal.persistent_esc        <Esc> leaves input (persistent)
-  mappings.picker                         j/k/<CR>/q/<Esc> in pickers
+  mappings.picker                         j/k/<CR>/q/<Esc> in searchable pickers
   mappings.run.popup                      d/c/q in the run-config float
 
 The treehouse return-confirmation float uses fixed `r`/`q` keys, displayed
@@ -162,10 +166,50 @@ require("aiterm.tabline")
   component()   -- lualine tabline component
 
 require("aiterm.ui.picker")
-  select(prompt, labels, on_choice, on_cancel)
+  select(prompt, labels, on_choice, on_cancel)  -- searchable picker
+
+require("aiterm")
+  setup(opts) register_provider(type, name, spec, opts) providers(type)
+
+require("aiterm.providers")
+  register(type, name, spec, opts) get(type, name) names(type) list(type)
 
 ==============================================================================
-8. HEALTH                                                      *aiterm-health*
+8. PROVIDERS                                               *aiterm-providers*
+
+The provider registry is intentionally small.
+It validates and stores provider specs; it does not auto-load plugins.
+
+Supported provider types:
+
+  ai             { command, executable?, prepare_workspace? }
+  process        reserved public type for persistent process integrations
+  workspace      reserved public type for workspace integrations
+  picker_action  reserved public type for actions against picker selections
+
+AI providers participate in :AISessionNew, generated :<Kind> commands,
+autostart selection, health checks, and terminal spawning.
+
+Example:
+>lua
+  require("aiterm").register_provider("ai", "goose", {
+    command = function(entry, resume)
+      if resume and entry and entry.id then
+        return { "goose", "resume", entry.id }
+      end
+      return { "goose", "session" }
+    end,
+    executable = "goose",
+    prepare_workspace = function(cwd)
+      -- Optional hook before spawning the terminal.
+    end,
+  })
+<
+
+Use `require("aiterm").providers("ai")` to inspect registered AI providers.
+
+==============================================================================
+9. HEALTH                                                      *aiterm-health*
 
 `:checkhealth aiterm` reports module enablement, the state dir, optional
 integrations, and the binaries required by each enabled module.

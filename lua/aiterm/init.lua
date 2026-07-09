@@ -1,5 +1,14 @@
 local M = {}
 
+function M.register_provider(provider_type, name, spec, opts)
+    return require("aiterm.providers").register(provider_type, name, spec, opts)
+end
+
+function M.providers(provider_type)
+    local providers = require("aiterm.providers")
+    return provider_type and providers.list(provider_type) or providers
+end
+
 function M.setup(opts)
     local config = require("aiterm.config")
     config.setup(opts)
