@@ -21,6 +21,8 @@ end
 
 local last_terminal_bufnr = nil
 local custom_labels = {}
+local automatic_labels = {}
+local next_automatic_label = 1
 local reopen_tree_on_file_focus = false
 
 local function tree_api()
@@ -74,6 +76,28 @@ local function listed_terminal_buffers()
     return terminals
 end
 
+local function assign_automatic_label(bufnr)
+    if automatic_labels[bufnr] then
+        return automatic_labels[bufnr]
+    end
+
+    local has_other_plain_terminal = false
+    for _, bufinfo in ipairs(listed_terminal_buffers()) do
+        if bufinfo.bufnr ~= bufnr and vim.b[bufinfo.bufnr].aiterm_ai_kind == nil then
+            has_other_plain_terminal = true
+            break
+        end
+    end
+
+    if not has_other_plain_terminal then
+        next_automatic_label = 1
+    end
+
+    automatic_labels[bufnr] = next_automatic_label
+    next_automatic_label = next_automatic_label + 1
+    return automatic_labels[bufnr]
+end
+
 function M.is_terminal(bufnr)
     return vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].buftype == "terminal"
 end
@@ -98,10 +122,8 @@ function M.label_for_buf(bufnr)
         return custom
     end
 
-    for index, bufinfo in ipairs(listed_terminal_buffers()) do
-        if bufinfo.bufnr == bufnr then
-            return "T:" .. index
-        end
+    if M.is_terminal(bufnr) and vim.b[bufnr].aiterm_ai_kind == nil then
+        return "T:" .. assign_automatic_label(bufnr)
     end
 
     return nil
@@ -232,6 +254,7 @@ function M.open_new()
     if not safe_enew() then
         return
     end
+    assign_automatic_label(vim.api.nvim_get_current_buf())
     vim.fn.termopen(vim.o.shell, { env = terminal_env() })
     enter_insert()
 end
@@ -261,6 +284,8 @@ function M.open_command(command, label, opts)
 
     if label and label ~= "" then
         custom_labels[bufnr] = label
+    elseif not (opts and opts.ai_kind) then
+        assign_automatic_label(bufnr)
     end
 
     -- Tagged before termopen so the TermOpen/BufEnter autocmds firing inside
@@ -452,11 +477,11 @@ local function buffer_name_in_use(name, keep_bufnr)
 end
 
 function M.refresh_names()
-    for index, bufinfo in ipairs(listed_terminal_buffers()) do
-        local desired = M.label_for_buf(bufinfo.bufnr) or ("T:" .. index)
+    for _, bufinfo in ipairs(listed_terminal_buffers()) do
+        local desired = M.label_for_buf(bufinfo.bufnr)
         local current = vim.api.nvim_buf_get_name(bufinfo.bufnr)
 
-        if vim.fs.basename(current) ~= desired then
+        if desired and vim.fs.basename(current) ~= desired then
             wipe_unlisted_name_holder(desired, bufinfo.bufnr)
             if buffer_name_in_use(desired, bufinfo.bufnr) then
                 goto continue
@@ -726,7 +751,11 @@ function M.setup()
         callback = function(event)
             if event.event == "BufWipeout" or event.event == "BufDelete" then
                 custom_labels[event.buf] = nil
+                automatic_labels[event.buf] = nil
             elseif M.is_terminal(event.buf) then
+                if vim.b[event.buf].aiterm_ai_kind == nil and not custom_labels[event.buf] then
+                    assign_automatic_label(event.buf)
+                end
                 -- AI harness buffers have their own toggle (<leader>m); keep
                 -- <leader>t pointed at the last plain terminal.
                 if vim.b[event.buf].aiterm_ai_kind == nil then
@@ -737,6 +766,14 @@ function M.setup()
                 restore_tree_for_file()
             end
             vim.schedule(M.refresh_names)
+            vim.schedule(function()
+                for _, bufinfo in ipairs(listed_terminal_buffers()) do
+                    if vim.b[bufinfo.bufnr].aiterm_ai_kind == nil then
+                        return
+                    end
+                end
+                next_automatic_label = 1
+            end)
         end,
     })
 
