@@ -22,7 +22,6 @@ end
 local last_terminal_bufnr = nil
 local custom_labels = {}
 local automatic_labels = {}
-local next_automatic_label = 1
 local reopen_tree_on_file_focus = false
 
 local function tree_api()
@@ -81,20 +80,17 @@ local function assign_automatic_label(bufnr)
         return automatic_labels[bufnr]
     end
 
-    local has_other_plain_terminal = false
+    local next_label = 1
     for _, bufinfo in ipairs(listed_terminal_buffers()) do
         if bufinfo.bufnr ~= bufnr and vim.b[bufinfo.bufnr].aiterm_ai_kind == nil then
-            has_other_plain_terminal = true
-            break
+            local label = automatic_labels[bufinfo.bufnr]
+            if label and label >= next_label then
+                next_label = label + 1
+            end
         end
     end
 
-    if not has_other_plain_terminal then
-        next_automatic_label = 1
-    end
-
-    automatic_labels[bufnr] = next_automatic_label
-    next_automatic_label = next_automatic_label + 1
+    automatic_labels[bufnr] = next_label
     return automatic_labels[bufnr]
 end
 
@@ -766,14 +762,6 @@ function M.setup()
                 restore_tree_for_file()
             end
             vim.schedule(M.refresh_names)
-            vim.schedule(function()
-                for _, bufinfo in ipairs(listed_terminal_buffers()) do
-                    if vim.b[bufinfo.bufnr].aiterm_ai_kind == nil then
-                        return
-                    end
-                end
-                next_automatic_label = 1
-            end)
         end,
     })
 

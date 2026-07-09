@@ -47,8 +47,19 @@ local third = open_plain_terminal()
 assert(terminal.label_for_buf(second) == "T:2", "remaining terminals retain their labels")
 assert(terminal.label_for_buf(third) == "T:3", "new terminals continue the active sequence")
 
+local fourth = open_plain_terminal()
+local fifth = open_plain_terminal()
+assert(terminal.label_for_buf(fourth) == "T:4", "the fourth terminal is T:4")
+assert(terminal.label_for_buf(fifth) == "T:5", "the fifth terminal is T:5")
+
+close_terminal(fifth)
+local replacement = open_plain_terminal()
+assert(terminal.label_for_buf(replacement) == "T:5", "a closed highest-numbered terminal is reused")
+
 close_terminal(second)
 close_terminal(third)
+close_terminal(fourth)
+close_terminal(replacement)
 local reset = open_plain_terminal()
 assert(terminal.label_for_buf(reset) == "T:1", "the sequence resets after every plain terminal closes")
 
