@@ -125,6 +125,11 @@ require("aiterm").setup({
 })
 ```
 
+Full workflow example:
+
+See [`examples/antonio-lazy.lua`](examples/antonio-lazy.lua) for a complete lazy.nvim setup with AI sessions, persistent processes, treehouse workspaces, keymaps, and the tabline enabled.
+That example opts into permission-bypassing AI harness flags, so review those arguments before copying it.
+
 ## Configuration
 
 All options with their defaults:
