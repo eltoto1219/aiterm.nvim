@@ -538,7 +538,10 @@ local function spawn(entry, resume)
     if entry.kind == "codex" then
         if not entry.id then
             watch_codex_id(bufnr, entry.key, os.time())
-        elseif not entry.title then
+        else
+            -- A restored session already has a cached title, but Codex can
+            -- rename that thread at any time. Keep watching the state database
+            -- so the terminal label and tabline do not stay stale.
             watch_codex_title(bufnr, entry.key)
         end
     else

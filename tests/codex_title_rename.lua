@@ -7,6 +7,7 @@ local cwd = vim.fs.joinpath(temp, "work")
 local sessions = vim.fs.joinpath(temp, "sessions")
 local state_db = vim.fs.joinpath(temp, "state.sqlite")
 local thread_id = "11111111-1111-4111-8111-111111111111"
+local session_key = "22222222-2222-4222-8222-222222222222"
 
 vim.fn.mkdir(bin, "p")
 vim.fn.mkdir(cwd, "p")
@@ -17,6 +18,26 @@ vim.fn.setfperm(vim.fs.joinpath(bin, "codex"), "rwxr-xr-x")
 vim.env.PATH = bin .. ":" .. vim.env.PATH
 vim.env.XDG_STATE_HOME = vim.fs.joinpath(temp, "state")
 vim.opt.rtp:prepend(root)
+
+vim.fn.writefile(
+    { '{"type":"event_msg","payload":{"type":"user_message","message":"hello"}}' },
+    vim.fs.joinpath(sessions, "2026", "07", "08", "rollout-2026-07-08T12-00-00-" .. thread_id .. ".jsonl")
+)
+
+local registry = vim.fs.joinpath(vim.fn.stdpath("state"), "aiterm", "ai_sessions.json")
+vim.fn.mkdir(vim.fs.dirname(registry), "p")
+vim.fn.writefile({
+    vim.json.encode({
+        {
+            key = session_key,
+            kind = "codex",
+            id = thread_id,
+            cwd = cwd,
+            title = "Initial Title",
+            last_used = os.time(),
+        },
+    }),
+}, registry)
 
 local function python(script_body)
     local result = vim.fn.system({ "python3", "-c", script_body, state_db, thread_id })
@@ -32,8 +53,9 @@ con.commit()
 ]])
 
 require("aiterm").setup({
+    tabline = { enabled = true },
     ai = {
-        restore = false,
+        restore = true,
         autostart = false,
         codex_sessions_dir = sessions,
         kinds = {
@@ -50,21 +72,12 @@ require("aiterm").setup({
 local ai = require("aiterm.ai")
 ai.codex_state_db = state_db
 
-local bufnr = ai.open("codex", cwd)
-assert(bufnr and vim.api.nvim_buf_is_valid(bufnr), "codex session opened")
-
-vim.fn.writefile(
-    { "{}" },
-    vim.fs.joinpath(sessions, "2026", "07", "08", "rollout-2026-07-08T12-00-00-" .. thread_id .. ".jsonl")
-)
+vim.cmd.cd(cwd)
+local bufnr = ai.restore_here()
+assert(bufnr and vim.api.nvim_buf_is_valid(bufnr), "cached codex session restored")
 
 local terminal = require("aiterm.terminal")
-assert(
-    vim.wait(7000, function()
-        return terminal.label_for_buf(bufnr) == "Initial Title"
-    end, 100),
-    "codex title is read from state db"
-)
+assert(terminal.label_for_buf(bufnr) == "Initial Title", "restored codex session starts with its cached title")
 
 python([[
 import sqlite3, sys
@@ -74,10 +87,10 @@ con.commit()
 ]])
 
 assert(
-    vim.wait(5000, function()
-        return terminal.label_for_buf(bufnr) == "temp"
+    vim.wait(7000, function()
+        return terminal.label_for_buf(bufnr) == "temp" and require("aiterm.tabline").component():find("temp", 1, true)
     end, 100),
-    "codex title rename updates the live label"
+    "codex title rename updates the restored session label and tabline"
 )
 
 if vim.api.nvim_buf_is_valid(bufnr) then
