@@ -6,8 +6,12 @@ local function binary(health, name, required, hint)
     elseif required then
         health.error(name .. " not found", hint)
     else
-        health.warn(name .. " not found", hint)
+        health.info(name .. " not found: " .. hint)
     end
+end
+
+local function enabled(value)
+    return value and "enabled" or "disabled"
 end
 
 function M.check()
@@ -17,6 +21,13 @@ function M.check()
 
     health.start("aiterm: core")
     health.ok("state dir: " .. config.state_dir())
+    health.info("buffers module: " .. enabled(opts.buffers.enabled))
+    health.info("ai module: " .. enabled(opts.ai.enabled))
+    health.info("processes module: " .. enabled(opts.processes.enabled))
+    health.info("treehouse module: " .. enabled(opts.treehouse.enabled))
+    health.info("run module: " .. enabled(opts.run.enabled))
+    health.info("tabline module: " .. enabled(opts.tabline.enabled))
+
     local integrations = {
         { "nvim-tree.api", "nvim-tree (auto-hide while a terminal is focused)" },
         { "nui.input", "nui.nvim (nicer centered input; falls back to vim.ui.input)" },
@@ -34,9 +45,17 @@ function M.check()
         health.start("aiterm: ai sessions")
         local ai = require("aiterm.ai")
         for _, kind in ipairs(ai.kind_names()) do
-            binary(health, kind, false, "sessions of kind '" .. kind .. "' cannot be spawned")
+            local spec = opts.ai.kinds[kind]
+            if type(spec) == "table" and type(spec.command) == "function" then
+                health.info("custom command configured for AI kind '" .. kind .. "'; binary cannot be verified")
+            else
+                binary(health, kind, true, "install " .. kind .. " or disable/remove AI kind '" .. kind .. "'")
+            end
         end
         health.info("codex sessions dir: " .. ai.codex_sessions_dir)
+    else
+        health.start("aiterm: ai sessions")
+        health.info("disabled; install claude/codex only if you enable this module")
     end
 
     if opts.processes.enabled then
@@ -50,6 +69,9 @@ function M.check()
                 "install it from github.com/shell-pool/shpool or set opts.processes.shpool"
             )
         end
+    else
+        health.start("aiterm: persistent processes")
+        health.info("disabled; install shpool only if you enable this module")
     end
 
     if opts.treehouse.enabled then
@@ -59,6 +81,18 @@ function M.check()
         if not opts.processes.enabled then
             health.warn("processes module disabled", "treehouse workspaces attach through shpool sessions")
         end
+        local backend = require("aiterm.process_backend")
+        if backend.available() then
+            health.ok("shpool available for treehouse sessions")
+        else
+            health.error(
+                "shpool not found",
+                "treehouse workspaces require shpool; install it from github.com/shell-pool/shpool"
+            )
+        end
+    else
+        health.start("aiterm: treehouse workspaces")
+        health.info("disabled; install treehouse, git, and shpool only if you enable this module")
     end
 end
 

@@ -11,13 +11,20 @@ A terminal-first workflow suite for Neovim, built around AI coding agents.
 - **Tabline** (opt-in): a lualine tabline component that shows file buffers, plain terminals, or AI sessions depending on where you are.
 - **Buffers**: file-vs-terminal navigation and a quit key that does the right thing for windows, buffers, and terminals.
 
-Everything is one plugin with opt-in modules; there are no inter-plugin dependencies.
+Everything is one plugin with opt-in modules.
+The plugin does not install external binaries or optional UI plugins for you.
 
 ## Requirements
 
 - Neovim >= 0.10
-- Optional integrations, used when present: nvim-tree, nui.nvim, lualine
-- Per module: `claude`/`codex` on PATH for AI sessions, `shpool` for persistent processes, `treehouse` + `git` for workspaces
+- Core terminal, buffers, and run-current-file features: no required external dependencies
+- AI sessions: `claude` and/or `codex` on PATH, depending on the configured kinds
+- Persistent processes: `shpool` on PATH, or `opts.processes.shpool` pointing at the binary
+- Treehouse workspaces: `treehouse`, `git`, and `shpool` on PATH
+- Optional UI integrations, used when present: `nvim-tree`, `nui.nvim`, `lualine`
+
+`aiterm.nvim` follows the usual Neovim plugin convention: it documents and checks external tools, but does not auto-install them.
+Run `:checkhealth aiterm` after setup to verify the modules you enable.
 
 ## Install
 
@@ -31,7 +38,92 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 }
 ```
 
-Run `:checkhealth aiterm` to verify binaries for the modules you enable.
+With [packer.nvim](https://github.com/wbthomason/packer.nvim):
+
+```lua
+use({
+  "eltoto1219/aiterm.nvim",
+  config = function()
+    require("aiterm").setup({})
+  end,
+})
+```
+
+With [vim-plug](https://github.com/junegunn/vim-plug):
+
+```vim
+Plug 'eltoto1219/aiterm.nvim'
+```
+
+```lua
+require("aiterm").setup({})
+```
+
+With native packages:
+
+```sh
+git clone https://github.com/eltoto1219/aiterm.nvim \
+  ~/.local/share/nvim/site/pack/plugins/start/aiterm.nvim
+```
+
+```lua
+require("aiterm").setup({})
+```
+
+## Module Recipes
+
+Default setup:
+
+```lua
+require("aiterm").setup({})
+```
+
+Core-only setup with no AI binaries required:
+
+```lua
+require("aiterm").setup({
+  ai = { enabled = false },
+})
+```
+
+AI sessions only:
+
+```lua
+require("aiterm").setup({
+  ai = {
+    enabled = true,
+    kinds = {
+      claude = { args = {} },
+      codex = { args = {} },
+    },
+  },
+})
+```
+
+Persistent terminals:
+
+```lua
+require("aiterm").setup({
+  processes = { enabled = true },
+})
+```
+
+Treehouse workspaces:
+
+```lua
+require("aiterm").setup({
+  processes = { enabled = true },
+  treehouse = { enabled = true },
+})
+```
+
+Tabline component:
+
+```lua
+require("aiterm").setup({
+  tabline = { enabled = true },
+})
+```
 
 ## Configuration
 

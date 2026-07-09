@@ -31,6 +31,14 @@ sessions survive nvim exits and crashes and can be restored later.
 <
 Only the terminal, buffers, ai, and run modules are active by default.
 Enable processes/treehouse/tabline explicitly (see |aiterm-options|).
+aiterm.nvim does not auto-install external binaries or optional UI plugins.
+Install tools only for the modules you enable:
+
+  core terminal/buffer/run features   no external dependencies
+  ai sessions                         claude and/or codex on PATH
+  persistent processes                shpool on PATH
+  treehouse workspaces                treehouse, git, and shpool on PATH
+  optional UI integrations            nvim-tree, nui.nvim, lualine
 
 ==============================================================================
 3. MODULES                                                    *aiterm-modules*
@@ -157,8 +165,9 @@ require("aiterm.ui.picker")
 ==============================================================================
 8. HEALTH                                                      *aiterm-health*
 
-`:checkhealth aiterm` reports the state dir, optional integrations, and the
-binaries required by each enabled module (claude/codex per configured kind,
-shpool, treehouse, git).
+`:checkhealth aiterm` reports module enablement, the state dir, optional
+integrations, and the binaries required by each enabled module.
+Missing binaries for enabled modules are errors.
+Tools for disabled modules are informational only.
 
 vim:tw=78:ts=8:noet:ft=help:norl:
