@@ -1,5 +1,40 @@
 local M = {}
 
+local function numbered_labels(labels)
+    local rendered = {}
+    local digits = #tostring(#labels)
+
+    for index, label in ipairs(labels) do
+        rendered[index] = string.format("%" .. digits .. "d. %s", index, label)
+    end
+
+    return rendered
+end
+
+local function setup_highlights()
+    local colors = require("aiterm.ui.colors")
+    local normal = colors.get_hl("NormalFloat")
+    if not normal.bg then
+        normal = colors.get_hl("Normal")
+    end
+
+    local cursorline = colors.get_hl("CursorLine")
+    local visual = colors.get_hl("Visual")
+    local fallback_bg = cursorline.bg or visual.bg
+    local bg = fallback_bg
+
+    if normal.bg and fallback_bg then
+        bg = colors.blend(normal.bg, fallback_bg, 0.45)
+    elseif not bg then
+        bg = vim.o.background == "light" and 0xe6e6e6 or 0x303030
+    end
+
+    vim.api.nvim_set_hl(0, "AitermPickerSelected", {
+        bg = bg,
+        fg = normal.fg,
+    })
+end
+
 -- Centered floating list picker: leaves Insert mode; j/k/<Down>/<Up> move
 -- (wrapping), <CR> selects, and q/<Esc> cancel. Calls on_choice with the
 -- selected index, or the optional on_cancel callback after cancellation.
@@ -9,6 +44,7 @@ function M.select(prompt, labels, on_choice, on_cancel)
     end
 
     vim.cmd.stopinsert()
+    setup_highlights()
 
     local width = math.max(40, math.min(60, vim.o.columns - 8))
     local height = math.min(#labels + 2, math.max(4, vim.o.lines - 8))
@@ -27,7 +63,12 @@ function M.select(prompt, labels, on_choice, on_cancel)
         title_pos = "center",
     })
 
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, labels)
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, numbered_labels(labels))
+    vim.wo[winid].cursorline = true
+    pcall(function()
+        vim.wo[winid].cursorlineopt = "line"
+    end)
+    vim.wo[winid].winhighlight = "CursorLine:AitermPickerSelected"
 
     vim.bo[bufnr].bufhidden = "wipe"
     vim.bo[bufnr].modifiable = false

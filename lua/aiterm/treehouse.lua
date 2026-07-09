@@ -770,7 +770,7 @@ function M.return_workspace()
     end
     local labels = {}
     for i, item in ipairs(sessions) do
-        labels[i] = string.format("%2d. %s", i, item.name:sub(#TH_PREFIX + 1))
+        labels[i] = item.name:sub(#TH_PREFIX + 1)
     end
     ui_picker.select("Return which workspace?", labels, function(index)
         if sessions[index] then

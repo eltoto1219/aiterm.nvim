@@ -243,6 +243,13 @@ function M.set_label(bufnr, label)
         custom_labels[bufnr] = nil
     end
     M.refresh_names()
+    vim.cmd.redrawtabline()
+    local ok, lualine = pcall(require, "lualine")
+    if ok then
+        lualine.refresh({
+            place = { "tabline", "statusline" },
+        })
+    end
 end
 
 function M.open_command(command, label, opts)
@@ -502,14 +509,13 @@ function M.rename_current()
                 vim.notify("Persistent terminals need a name after " .. prefix, vim.log.levels.WARN)
                 return
             end
-            custom_labels[current] = nil
+            M.set_label(current, nil)
             vim.notify("Reset terminal name to default numbering")
         else
-            custom_labels[current] = (prefix or "") .. trimmed
+            M.set_label(current, (prefix or "") .. trimmed)
             vim.notify("Renamed terminal to " .. (prefix or "") .. trimmed)
         end
 
-        M.refresh_names()
         if M.is_terminal(current) and vim.api.nvim_get_current_buf() == current then
             enter_insert()
         end

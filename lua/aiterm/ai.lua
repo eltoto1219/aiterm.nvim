@@ -12,8 +12,10 @@ local terminal = require("aiterm.terminal")
 local entries = {} -- key -> entry { key, kind, id, cwd, title, last_used }
 local buffers = {} -- bufnr -> key
 local pending_resumes = {}
+local codex_spawn_times = {}
 local unnamed_counter = 0
 local exiting = false
+local quitting = false
 local last_ai_bufnr = nil
 
 M.codex_sessions_dir = vim.fs.joinpath(vim.env.HOME or "~", ".codex", "sessions")
@@ -133,6 +135,42 @@ local function claude_conversation_exists(entry)
     return type(path) == "string" and path ~= "" and vim.fn.getfsize(path) > 0
 end
 
+local uuid_pattern = "(%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x)%.jsonl$"
+
+local function codex_conversation_path(entry)
+    if type(entry.id) ~= "string" or entry.id == "" then
+        return nil
+    end
+
+    local matches = vim.fn.globpath(M.codex_sessions_dir, "**/rollout-*" .. entry.id .. ".jsonl", false, true)
+    return matches[1]
+end
+
+local function codex_conversation_exists(entry)
+    local path = codex_conversation_path(entry)
+    if type(path) ~= "string" or path == "" or vim.fn.filereadable(path) ~= 1 then
+        return false
+    end
+
+    for _, line in ipairs(vim.fn.readfile(path, "", 2000)) do
+        local ok, item = pcall(vim.json.decode, line)
+        local payload = ok and type(item) == "table" and item.payload or nil
+        if
+            ok
+            and type(item) == "table"
+            and item.type == "event_msg"
+            and type(payload) == "table"
+            and payload.type == "user_message"
+            and type(payload.message) == "string"
+            and vim.trim(payload.message) ~= ""
+        then
+            return true
+        end
+    end
+
+    return false
+end
+
 local function entry_is_restorable(entry)
     if type(entry.id) ~= "string" or entry.id == "" then
         return false
@@ -141,7 +179,15 @@ local function entry_is_restorable(entry)
     -- Claude only materializes a conversation after the first real exchange.
     -- Resuming a generated-but-unused --session-id exits with "cannot find
     -- conversation with ID", so do not persist it as restorable.
-    return entry.kind ~= "claude" or claude_conversation_exists(entry)
+    if entry.kind == "claude" then
+        return claude_conversation_exists(entry)
+    end
+
+    if entry.kind == "codex" then
+        return codex_conversation_exists(entry)
+    end
+
+    return true
 end
 
 local function save_registry()
@@ -298,16 +344,15 @@ local codex_title_query = table.concat({
 }, "\n")
 
 local function watch_codex_title(bufnr, key)
-    local attempts = 0
-
     local function poll()
         local entry = entries[key]
-        if exiting or not entry or not entry.id or entry.title or not buffer_alive(bufnr) then
+        if exiting or not entry or not entry.id or buffers[bufnr] ~= key or not buffer_alive(bufnr) then
             return
         end
 
         local db = M.codex_state_db or find_codex_state_db()
         if not db then
+            vim.defer_fn(poll, 3000)
             return
         end
 
@@ -317,17 +362,15 @@ local function watch_codex_title(bufnr, key)
             vim.schedule_wrap(function(result)
                 local title = clean_title(vim.trim(result.stdout or ""))
                 entry = entries[key]
-                if title and entry and not entry.title then
+                if title and entry and title ~= entry.title then
                     entry.title = title
                     if buffer_alive(bufnr) then
                         terminal.set_label(bufnr, title)
                     end
                     save_registry()
-                    return
                 end
 
-                attempts = attempts + 1
-                if attempts < 200 and not exiting then
+                if not exiting and entry and buffers[bufnr] == key and buffer_alive(bufnr) then
                     vim.defer_fn(poll, 3000)
                 end
             end)
@@ -349,8 +392,6 @@ local function newest_codex_rollout(min_mtime)
 
     return newest_path
 end
-
-local uuid_pattern = "(%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x)%.jsonl$"
 
 local function watch_codex_id(bufnr, key, spawn_time)
     local attempts = 0
@@ -377,6 +418,20 @@ local function watch_codex_id(bufnr, key, spawn_time)
     end
 
     vim.defer_fn(poll, 1000)
+end
+
+local function capture_pending_codex_ids()
+    for bufnr, key in pairs(buffers) do
+        local entry = entries[key]
+        if entry and entry.kind == "codex" and not entry.id and buffer_alive(bufnr) then
+            local spawn_time = codex_spawn_times[key] or entry.last_used or os.time()
+            local path = newest_codex_rollout(spawn_time - 1)
+            local id = path and path:match(uuid_pattern) or nil
+            if id then
+                entry.id = id
+            end
+        end
+    end
 end
 
 -- claude has no setting to skip its "do you trust this workspace?" dialog
@@ -425,6 +480,9 @@ local function spawn(entry, resume)
     entry.last_used = os.time()
     entries[entry.key] = entry
     buffers[bufnr] = entry.key
+    if entry.kind == "codex" and not entry.id then
+        codex_spawn_times[entry.key] = os.time()
+    end
     if resume then
         pending_resumes[bufnr] = vim.uv.hrtime()
     end
@@ -553,11 +611,7 @@ local function restorable_entries(scope_cwd)
     local scope = scope_cwd and vim.fs.normalize(scope_cwd) or nil
     local list = {}
     for key, entry in pairs(entries) do
-        if
-            not entry_is_alive(key)
-            and entry_is_restorable(entry)
-            and entry_matches_cwd(entry, scope)
-        then
+        if not entry_is_alive(key) and entry_is_restorable(entry) and entry_matches_cwd(entry, scope) then
             list[#list + 1] = entry
         end
     end
@@ -610,7 +664,7 @@ function M.pick()
         local entry = entries[buffers[bufnr]]
         local label = terminal.label_for_buf(bufnr) or vim.fs.basename(vim.api.nvim_buf_get_name(bufnr))
         if entry then
-            labels[#labels + 1] = string.format("%2d. %s", #labels + 1, picker_label(entry, label, false))
+            labels[#labels + 1] = picker_label(entry, label, false)
             actions[#actions + 1] = function()
                 focus_ai(bufnr)
             end
@@ -619,7 +673,7 @@ function M.pick()
 
     for _, entry in ipairs(cached) do
         local label = entry.title or ("Unnamed " .. entry.kind)
-        labels[#labels + 1] = string.format("%2d. %s", #labels + 1, picker_label(entry, label, true))
+        labels[#labels + 1] = picker_label(entry, label, true)
         actions[#actions + 1] = function()
             spawn(entry, true)
         end
@@ -649,6 +703,7 @@ local function forget_buffer(bufnr, remove_entry)
     end
 
     buffers[bufnr] = nil
+    codex_spawn_times[key] = nil
     if remove_entry and entries[key] then
         entries[key] = nil
         save_registry()
@@ -695,7 +750,7 @@ function M.kill_current_or_select()
     local labels = {}
     for i, bufnr in ipairs(live) do
         local label = terminal.label_for_buf(bufnr) or vim.fs.basename(vim.api.nvim_buf_get_name(bufnr))
-        labels[i] = string.format("%2d. %s", i, label)
+        labels[i] = label
     end
 
     require("aiterm.ui.picker").select("Kill AI session:", labels, function(index)
@@ -730,7 +785,30 @@ local function should_autostart()
         and not vim.g.aiterm_disable_ai_autostart
 end
 
+function M.autostart_kind()
+    local preferred = config.opts.ai.autostart_kind
+    if type(preferred) == "string" and preferred ~= "" then
+        if not M.commands[preferred] then
+            vim.notify("Unknown AI autostart harness: " .. preferred, vim.log.levels.ERROR)
+            return nil
+        end
+        if vim.fn.executable(preferred) ~= 1 then
+            vim.notify(preferred .. " is not installed or not on PATH", vim.log.levels.ERROR)
+            return nil
+        end
+        return preferred
+    end
+
+    for _, kind in ipairs(M.kind_names()) do
+        if M.commands[kind] and vim.fn.executable(kind) == 1 then
+            return kind
+        end
+    end
+end
+
 function M.setup()
+    quitting = false
+
     -- Custom harnesses: opts.ai.kinds.<name>.command replaces the launcher.
     for kind, spec in pairs(config.opts.ai.kinds) do
         if type(spec) == "table" and type(spec.command) == "function" then
@@ -800,7 +878,7 @@ function M.setup()
     vim.api.nvim_create_autocmd("TermClose", {
         group = group,
         callback = function(event)
-            if not buffers[event.buf] or exiting or vim.v.exiting ~= vim.NIL then
+            if not buffers[event.buf] or exiting or quitting or vim.v.exiting ~= vim.NIL then
                 return
             end
 
@@ -864,10 +942,23 @@ function M.setup()
         end,
     })
 
+    vim.api.nvim_create_autocmd("QuitPre", {
+        group = group,
+        callback = function()
+            quitting = true
+            vim.schedule(function()
+                if not exiting then
+                    quitting = false
+                end
+            end)
+        end,
+    })
+
     vim.api.nvim_create_autocmd("VimLeavePre", {
         group = group,
         callback = function()
             exiting = true
+            capture_pending_codex_ids()
             save_registry()
         end,
     })
@@ -899,11 +990,9 @@ function M.setup()
                     if count > 0 then
                         vim.notify(("Restored %d AI harness session(s)"):format(count))
                     else
-                        for _, kind in ipairs(M.kind_names()) do
-                            if M.commands[kind] and vim.fn.executable(kind) == 1 then
-                                bufnr = M.open(kind)
-                                break
-                            end
+                        local kind = M.autostart_kind()
+                        if kind then
+                            bufnr = M.open(kind)
                         end
                     end
 

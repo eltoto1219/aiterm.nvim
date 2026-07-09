@@ -11,20 +11,26 @@ local terminal = require("aiterm.terminal")
 local bufnr = terminal.open_command({ "sh", "-c", "printf 'abcdefghij\\n'; sleep 30" }, "insert-resume-test")
 assert(bufnr and vim.api.nvim_buf_is_valid(bufnr), "terminal opened")
 local input_row = nil
-assert(vim.wait(1000, function()
-    for row, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
-        if line:find("abcdefghij", 1, true) then
-            input_row = row
-            return true
+assert(
+    vim.wait(1000, function()
+        for row, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
+            if line:find("abcdefghij", 1, true) then
+                input_row = row
+                return true
+            end
         end
-    end
-    return false
-end), "test terminal line found")
+        return false
+    end),
+    "test terminal line found"
+)
 
 vim.cmd.stopinsert()
-assert(vim.wait(1000, function()
-    return vim.fn.mode() == "n"
-end), "entered terminal normal mode")
+assert(
+    vim.wait(1000, function()
+        return vim.fn.mode() == "n"
+    end),
+    "entered terminal normal mode"
+)
 
 local resume_i = nil
 for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(bufnr, "n")) do
@@ -53,9 +59,12 @@ assert(
     "test cursor placed in live input: " .. vim.inspect(vim.api.nvim_win_get_cursor(0))
 )
 resume_i()
-assert(vim.wait(1000, function()
-    return #captured == 1
-end), "live input resume sent movement keys")
+assert(
+    vim.wait(1000, function()
+        return #captured == 1
+    end),
+    "live input resume sent movement keys"
+)
 assert(
     captured[1] == encoded("<Left><Left><Left>"),
     "live input resume applies one-column terminal offset: " .. vim.inspect(captured[1])
@@ -63,9 +72,12 @@ assert(
 
 captured = {}
 vim.cmd.stopinsert()
-assert(vim.wait(1000, function()
-    return vim.fn.mode() == "n"
-end), "re-entered terminal normal mode")
+assert(
+    vim.wait(1000, function()
+        return vim.fn.mode() == "n"
+    end),
+    "re-entered terminal normal mode"
+)
 vim.api.nvim_win_set_cursor(0, { input_row, 3 })
 vim.b[bufnr].aiterm_terminal_input_cursor = { input_row + 1, 5 }
 resume_i()

@@ -133,7 +133,7 @@ local function select_session(prompt, on_choice)
         if home ~= "" and cwd:sub(1, #home) == home then
             cwd = "~" .. cwd:sub(#home + 1)
         end
-        labels[index] = string.format("%2d. %s  %s", index, cwd, item.name)
+        labels[index] = string.format("%s  %s", cwd, item.name)
     end
 
     ui_picker.select(prompt, labels, function(index)

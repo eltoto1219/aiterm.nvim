@@ -71,6 +71,8 @@ ai.kinds                 kind -> { args, command? }. `args` extend the
                          resume)` returning argv defines a custom harness.
                          No permission-bypassing flags ship by default.
 ai.autostart             Spawn/restore a session on a plain `nvim` launch.
+ai.autostart_kind        Kind to spawn when autostart has nothing to restore.
+                         nil picks the first executable configured kind.
 ai.restore               Load the on-disk registry at startup.
 ai.commands              Generate :Claude/:Codex/... and the :AISession* family.
 processes.enabled        Requires shpool.

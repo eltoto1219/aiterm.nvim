@@ -154,6 +154,7 @@ require("aiterm").setup({
       codex = { args = {} },
     },
     autostart = false,          -- spawn/restore a session on plain `nvim`
+    autostart_kind = nil,       -- nil picks first executable kind; e.g. "codex"
     restore = true,             -- load the on-disk session registry at startup
     commands = true,            -- :Claude / :Codex (one per kind) and the :AISession* family
     codex_sessions_dir = nil,   -- default: ~/.codex/sessions
