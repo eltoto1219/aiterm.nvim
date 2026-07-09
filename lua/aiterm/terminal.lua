@@ -780,6 +780,25 @@ function M.setup()
                     end
                 end
             end
+
+            for _, mapping in ipairs({
+                { mappings.previous, M.backward, "Previous terminal buffer" },
+                { mappings.next, M.forward, "Next terminal buffer" },
+            }) do
+                local lhs, action, desc = mapping[1], mapping[2], mapping[3]
+                for _, key in ipairs(type(lhs) == "table" and lhs or { lhs }) do
+                    if key ~= false and key ~= nil and key ~= "" then
+                        vim.keymap.set(
+                            "n",
+                            key,
+                            action,
+                            vim.tbl_extend("force", opts, {
+                                desc = desc,
+                            })
+                        )
+                    end
+                end
+            end
         end,
     })
 

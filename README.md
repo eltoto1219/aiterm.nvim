@@ -510,7 +510,7 @@ Every mapping it can create is listed here; each is configurable through the opt
 | Mapping | Option | Scope | Action |
 |---|---|---|---|
 | (disabled) | `mappings.buffers.{previous,next,alternate,quit}` | global | File-buffer navigation and smart close |
-| (disabled) | `mappings.terminal.{toggle,new,previous,next}` | global | Plain terminal actions |
+| (disabled) | `mappings.terminal.{toggle,new,previous,next}` | global | Plain terminal actions; previous/next work in terminal and normal modes |
 | (disabled) | `mappings.ai.{toggle,new,pick,kill,kill_all,restore}` | global | AI session actions |
 | (disabled) | `mappings.processes.{pick,new,attach_last,attach_all,kill,kill_all}` | global | Persistent terminal actions |
 | (disabled) | `mappings.treehouse.{acquire,lease,status,pick,return_ws}` | global | Treehouse actions |
