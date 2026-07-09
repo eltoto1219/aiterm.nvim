@@ -442,16 +442,26 @@ local function watch_codex_id(bufnr, key, spawn_time)
     vim.defer_fn(poll, 1000)
 end
 
+local function capture_codex_id_for_buffer(bufnr)
+    local key = buffers[bufnr]
+    local entry = key and entries[key] or nil
+    if not entry or entry.kind ~= "codex" or entry.id then
+        return
+    end
+
+    local spawn_time = codex_spawn_times[key] or entry.last_used or os.time()
+    local path = newest_codex_rollout(spawn_time - 1)
+    local id = path and path:match(uuid_pattern) or nil
+    if id then
+        entry.id = id
+    end
+end
+
 local function capture_pending_codex_ids()
     for bufnr, key in pairs(buffers) do
         local entry = entries[key]
         if entry and entry.kind == "codex" and not entry.id and buffer_alive(bufnr) then
-            local spawn_time = codex_spawn_times[key] or entry.last_used or os.time()
-            local path = newest_codex_rollout(spawn_time - 1)
-            local id = path and path:match(uuid_pattern) or nil
-            if id then
-                entry.id = id
-            end
+            capture_codex_id_for_buffer(bufnr)
         end
     end
 end
@@ -993,6 +1003,9 @@ function M.setup()
     vim.api.nvim_create_autocmd("BufWipeout", {
         group = group,
         callback = function(event)
+            if exiting or quitting or vim.v.exiting ~= vim.NIL then
+                capture_codex_id_for_buffer(event.buf)
+            end
             forget_buffer(event.buf, false)
         end,
     })

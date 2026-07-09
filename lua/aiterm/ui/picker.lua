@@ -76,6 +76,22 @@ local function setup_highlights()
         bg = bg,
         fg = normal.fg,
     })
+
+    local prompt = colors.get_hl("FloatTitle")
+    if not prompt.fg then
+        prompt = colors.get_hl("Title")
+    end
+    if not prompt.fg then
+        prompt = colors.get_hl("Special")
+    end
+    if not prompt.fg then
+        prompt = colors.get_hl("FloatBorder")
+    end
+
+    vim.api.nvim_set_hl(0, "AitermPickerPrompt", {
+        fg = prompt.fg or normal.fg,
+        bold = prompt.bold,
+    })
 end
 
 -- Centered searchable picker. Plain labels preserve the original callback API:
@@ -119,6 +135,7 @@ function M.select(prompt, labels, on_choice, on_cancel)
 
     local prompt_prefix = "Search: "
     local rendering = false
+    local prompt_row = 0
 
     local function render()
         rendering = true
@@ -135,23 +152,30 @@ function M.select(prompt, labels, on_choice, on_cancel)
             selected = 1
         end
 
-        local lines = { prompt_prefix .. query, "" }
+        local lines = {}
         if #visible == 0 then
             lines[#lines + 1] = "No matches"
         else
             vim.list_extend(lines, numbered_labels(visible))
         end
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = prompt_prefix .. query
+        prompt_row = #lines - 1
 
         vim.bo[bufnr].modifiable = true
         vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
         vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
         if #visible > 0 then
-            vim.api.nvim_buf_set_extmark(bufnr, ns, selected + 1, 0, {
+            vim.api.nvim_buf_set_extmark(bufnr, ns, selected - 1, 0, {
                 line_hl_group = "AitermPickerSelected",
             })
         end
+        vim.api.nvim_buf_set_extmark(bufnr, ns, prompt_row, 0, {
+            end_col = #prompt_prefix - 1,
+            hl_group = "AitermPickerPrompt",
+        })
         vim.bo[bufnr].modifiable = true
-        pcall(vim.api.nvim_win_set_cursor, winid, { 1, #prompt_prefix + #query })
+        pcall(vim.api.nvim_win_set_cursor, winid, { prompt_row + 1, #prompt_prefix + #query })
         rendering = false
     end
 
@@ -204,7 +228,7 @@ function M.select(prompt, labels, on_choice, on_cancel)
     local function focus_prompt()
         if vim.api.nvim_win_is_valid(winid) then
             vim.api.nvim_set_current_win(winid)
-            vim.api.nvim_win_set_cursor(winid, { 1, #prompt_prefix + #query })
+            vim.api.nvim_win_set_cursor(winid, { prompt_row + 1, #prompt_prefix + #query })
             vim.cmd.startinsert()
         end
     end
@@ -227,7 +251,7 @@ function M.select(prompt, labels, on_choice, on_cancel)
             if rendering then
                 return
             end
-            local line = vim.api.nvim_buf_get_lines(bufnr, 0, 1, false)[1] or ""
+            local line = vim.api.nvim_buf_get_lines(bufnr, prompt_row, prompt_row + 1, false)[1] or ""
             if not vim.startswith(line, prompt_prefix) then
                 render()
                 return
