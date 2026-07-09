@@ -850,23 +850,6 @@ function M.setup()
     vim.api.nvim_create_user_command("TreehouseReturn", M.return_workspace, {
         desc = "Return a leased treehouse workspace",
     })
-
-    local mappings = config.opts.treehouse.mappings
-    if type(mappings) == "table" then
-        local actions = {
-            { mappings.acquire, M.acquire_disposable, "Treehouse: acquire disposable workspace" },
-            { mappings.lease, M.acquire_leased, "Treehouse: acquire leased workspace" },
-            { mappings.status, M.status, "Treehouse: status" },
-            { mappings.pick, M.pick, "Treehouse: workspace picker" },
-            { mappings.return_ws, M.return_workspace, "Treehouse: return leased workspace" },
-        }
-        for _, action in ipairs(actions) do
-            local lhs, fn, desc = action[1], action[2], action[3]
-            if lhs then
-                vim.keymap.set("n", lhs, fn, { silent = true, desc = desc })
-            end
-        end
-    end
 end
 
 return M

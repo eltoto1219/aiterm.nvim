@@ -1,7 +1,9 @@
 local M = {}
 
--- Single source of truth for every option and default mapping. Any mapping
--- value can be set to false to disable that keymap.
+-- Single source of truth for options. All keymaps the plugin can create live
+-- under `mappings`; false disables a mapping, a string sets its lhs, and a
+-- list sets multiple lhs values for the same action. `true` is reserved for
+-- mappings with intrinsic built-in keys.
 M.defaults = {
     terminal = {
         -- Styling autocmds: no numbers/signcolumn in terminals, startinsert on
@@ -15,13 +17,6 @@ M.defaults = {
         -- table | fun():table merged over the environment captured at launch,
         -- applied to every terminal the plugin spawns.
         env = nil,
-        mappings = {
-            prompt_prev = "[a",
-            prompt_next = "]a",
-            rename = "<leader>r", -- buffer-local in terminals
-            insert_resume = true, -- i/a/I/A resume terminal input
-            persistent_esc = true, -- <Esc> leaves input mode in persistent terminals
-        },
     },
     buffers = {
         enabled = true, -- last-edit-buffer tracking autocmds
@@ -48,22 +43,65 @@ M.defaults = {
     },
     treehouse = {
         enabled = false, -- requires the treehouse CLI and shpool
-        -- false for no global maps, or a table like:
-        -- { acquire = "<leader>fa", lease = "<leader>fl", status = "<leader>fs",
-        --   pick = "<leader>fw", return_ws = "<leader>fr" }
-        mappings = false,
     },
     run = {
         enabled = true, -- :TerminalConfig + exec_current_file()
         templates = {}, -- filetype -> command template, merged over built-ins
-        popup_mappings = { default = "d", custom = "c", close = "q" },
     },
     tabline = {
         enabled = false, -- lualine tabline component + its highlights
     },
-    ui = {
+    mappings = {
+        buffers = {
+            previous = false,
+            next = false,
+            alternate = false,
+            quit = false,
+        },
+        terminal = {
+            toggle = false,
+            new = false,
+            previous = false,
+            next = false,
+            prompt_prev = "[a",
+            prompt_next = "]a",
+            rename = "<leader>r", -- buffer-local in terminals
+            insert_resume = { "i", "a", "I", "A" },
+            persistent_esc = "<Esc>",
+        },
+        ai = {
+            toggle = false,
+            new = false,
+            pick = false,
+            kill = false,
+            kill_all = false,
+            restore = false,
+        },
+        processes = {
+            pick = false,
+            new = false,
+            attach_last = false,
+            attach_all = false,
+            kill = false,
+            kill_all = false,
+        },
+        treehouse = {
+            acquire = false,
+            lease = false,
+            status = false,
+            pick = false,
+            return_ws = false,
+        },
+        run = {
+            current_file = false,
+            configure = false,
+            popup = { default = "d", custom = "c", close = "q" },
+        },
         picker = {
-            mappings = { down = "j", up = "k", confirm = "<CR>", cancel = { "q", "<Esc>" } },
+            down = "j",
+            up = "k",
+            confirm = "<CR>",
+            cancel = { "q", "<Esc>" },
         },
     },
 }

@@ -107,8 +107,42 @@ local function load_registry()
     end
 end
 
+local function claude_projects_dir()
+    return vim.fs.joinpath(vim.env.HOME or "~", ".claude", "projects")
+end
+
+local function claude_conversation_path(entry)
+    if type(entry.id) ~= "string" or entry.id == "" then
+        return nil
+    end
+
+    local cwd = type(entry.cwd) == "string" and entry.cwd or ""
+    if cwd ~= "" then
+        local encoded = vim.fs.normalize(cwd):gsub("[/\\]", "-")
+        local path = vim.fs.joinpath(claude_projects_dir(), encoded, entry.id .. ".jsonl")
+        if vim.fn.filereadable(path) == 1 then
+            return path
+        end
+    end
+
+    local matches = vim.fn.globpath(claude_projects_dir(), "**/" .. entry.id .. ".jsonl", false, true)
+    return matches[1]
+end
+
+local function claude_conversation_exists(entry)
+    local path = claude_conversation_path(entry)
+    return type(path) == "string" and path ~= "" and vim.fn.getfsize(path) > 0
+end
+
 local function entry_is_restorable(entry)
-    return type(entry.id) == "string" and entry.id ~= ""
+    if type(entry.id) ~= "string" or entry.id == "" then
+        return false
+    end
+
+    -- Claude only materializes a conversation after the first real exchange.
+    -- Resuming a generated-but-unused --session-id exits with "cannot find
+    -- conversation with ID", so do not persist it as restorable.
+    return entry.kind ~= "claude" or claude_conversation_exists(entry)
 end
 
 local function save_registry()

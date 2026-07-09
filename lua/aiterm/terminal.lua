@@ -495,20 +495,23 @@ local function prompt_jump(direction)
 end
 
 function M.set_prompt_jump_keymaps(bufnr)
-    local mappings = config.opts.terminal.mappings
+    local mappings = config.opts.mappings.terminal
     local jumps = {
         { mappings.prompt_prev, -1, "Jump to previous prompt" },
         { mappings.prompt_next, 1, "Jump to next prompt, or to the live input in normal mode" },
     }
     for _, jump in ipairs(jumps) do
         local lhs, direction, desc = jump[1], jump[2], jump[3]
-        if lhs then
-            vim.keymap.set("n", lhs, prompt_jump(direction), {
+        for _, key in ipairs(type(lhs) == "table" and lhs or { lhs }) do
+            if key == false or key == nil or key == "" then
+                goto continue
+            end
+            vim.keymap.set("n", key, prompt_jump(direction), {
                 buffer = bufnr,
                 silent = true,
                 desc = desc,
             })
-            vim.keymap.set("t", lhs, function()
+            vim.keymap.set("t", key, function()
                 vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-\\><C-n>", true, false, true), "n", false)
                 vim.schedule(prompt_jump(direction))
             end, {
@@ -516,6 +519,7 @@ function M.set_prompt_jump_keymaps(bufnr)
                 silent = true,
                 desc = desc,
             })
+            ::continue::
         end
     end
 end
@@ -534,13 +538,18 @@ function M.configure_persistent_buffer(bufnr, session_name)
 
     M.set_prompt_jump_keymaps(bufnr)
 
-    if config.opts.terminal.mappings.persistent_esc then
-        vim.keymap.set("t", "<Esc>", "<C-\\><C-n>", {
-            buffer = bufnr,
-            silent = true,
-            nowait = true,
-            desc = "Leave terminal input mode",
-        })
+    local persistent_esc = config.opts.mappings.terminal.persistent_esc
+    if persistent_esc then
+        for _, lhs in ipairs(type(persistent_esc) == "table" and persistent_esc or { persistent_esc }) do
+            if lhs ~= false and lhs ~= nil and lhs ~= "" then
+                vim.keymap.set("t", lhs == true and "<Esc>" or lhs, "<C-\\><C-n>", {
+                    buffer = bufnr,
+                    silent = true,
+                    nowait = true,
+                    desc = "Leave terminal input mode",
+                })
+            end
+        end
     end
 end
 
@@ -689,10 +698,12 @@ function M.setup()
         group = group,
         callback = function(event)
             local opts = { buffer = event.buf, silent = true }
-            local mappings = config.opts.terminal.mappings
+            local mappings = config.opts.mappings.terminal
 
             if mappings.insert_resume then
-                for _, lhs in ipairs({ "i", "a", "I", "A" }) do
+                local lhs_list = type(mappings.insert_resume) == "table" and mappings.insert_resume
+                    or { "i", "a", "I", "A" }
+                for _, lhs in ipairs(lhs_list) do
                     vim.keymap.set(
                         "n",
                         lhs,
@@ -704,14 +715,18 @@ function M.setup()
                 end
             end
             if mappings.rename then
-                vim.keymap.set(
-                    "n",
-                    mappings.rename,
-                    M.rename_current,
-                    vim.tbl_extend("force", opts, {
-                        desc = "Rename current terminal",
-                    })
-                )
+                for _, lhs in ipairs(type(mappings.rename) == "table" and mappings.rename or { mappings.rename }) do
+                    if lhs ~= false and lhs ~= nil and lhs ~= "" then
+                        vim.keymap.set(
+                            "n",
+                            lhs,
+                            M.rename_current,
+                            vim.tbl_extend("force", opts, {
+                                desc = "Rename current terminal",
+                            })
+                        )
+                    end
+                end
             end
         end,
     })

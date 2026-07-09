@@ -58,7 +58,6 @@ terminal.background      Number or "#rrggbb" painted under terminals; must
                          match the OSC 11 color nvim reports. false disables.
 terminal.env             table | fun():table merged over the launch environ
                          for every spawned terminal.
-terminal.mappings        See |aiterm-keymaps|. Any key false to disable.
 ai.kinds                 kind -> { args, command? }. `args` extend the
                          built-in claude/codex launchers; `command(entry,
                          resume)` returning argv defines a custom harness.
@@ -70,11 +69,10 @@ processes.enabled        Requires shpool.
 processes.shpool         Binary name or absolute path override.
 processes.session_prefix Prefix for shpool session names.
 treehouse.enabled        Requires treehouse CLI (+ shpool).
-treehouse.mappings       false, or a table of global maps (see below).
 run.templates            filetype -> template with {file} {dir} {name}
                          {stem} placeholders.
 tabline.enabled          Registers highlights/autocmds for the component.
-ui.picker.mappings       Keys inside picker floats.
+mappings                 See |aiterm-keymaps|. Any key false to disable.
 
 ==============================================================================
 5. KEYMAPS                                                    *aiterm-keymaps*
@@ -82,16 +80,23 @@ ui.picker.mappings       Keys inside picker floats.
 No global keymaps are created by default. Every mapping the plugin can
 create is configurable and carries a `desc`:
 
-  terminal.mappings.prompt_prev = "[a"    prompt jump backwards (terminals)
-  terminal.mappings.prompt_next = "]a"    prompt jump forwards (terminals)
-  terminal.mappings.rename = "<leader>r"  rename terminal (terminals)
-  terminal.mappings.insert_resume = true  i/a/I/A resume input (terminals)
-  terminal.mappings.persistent_esc = true <Esc> leaves input (persistent)
-  ui.picker.mappings                      j/k/<CR>/q/<Esc> in pickers
-  run.popup_mappings                      d/c/q in the run-config float
-  treehouse.mappings = {                  global, disabled by default
-    acquire = ..., lease = ..., status = ..., pick = ..., return_ws = ...,
-  }
+  mappings.buffers.previous/next          global file-buffer navigation
+  mappings.buffers.alternate              global alternate file buffer
+  mappings.buffers.quit                   global smart close
+  mappings.terminal.toggle/new            global terminal actions
+  mappings.terminal.previous/next         terminal-mode terminal navigation
+  mappings.ai.toggle/new/pick             global AI session actions
+  mappings.ai.kill/kill_all/restore       global AI session lifecycle actions
+  mappings.processes.*                    global persistent terminal actions
+  mappings.treehouse.*                    global treehouse actions
+  mappings.run.current_file/configure     global run actions
+  mappings.terminal.prompt_prev = "[a"    prompt jump backwards (terminals)
+  mappings.terminal.prompt_next = "]a"    prompt jump forwards (terminals)
+  mappings.terminal.rename = "<leader>r"  rename terminal (terminals)
+  mappings.terminal.insert_resume         i/a/I/A resume input (terminals)
+  mappings.terminal.persistent_esc        <Esc> leaves input (persistent)
+  mappings.picker                         j/k/<CR>/q/<Esc> in pickers
+  mappings.run.popup                      d/c/q in the run-config float
 
 The treehouse return-confirmation float uses fixed `r`/`q` keys, displayed
 inside the dialog itself.

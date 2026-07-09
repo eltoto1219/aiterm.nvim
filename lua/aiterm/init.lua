@@ -25,6 +25,7 @@ function M.setup(opts)
         tabline.setup_highlights()
         tabline.register_autocmds()
     end
+    require("aiterm.mappings").setup()
 end
 
 return M

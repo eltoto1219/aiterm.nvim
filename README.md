@@ -50,13 +50,6 @@ require("aiterm").setup({
     -- table | fun():table merged over the environment captured at nvim
     -- launch, applied to every terminal the plugin spawns.
     env = nil,
-    mappings = {
-      prompt_prev = "[a",       -- jump to previous prompt in a transcript
-      prompt_next = "]a",       -- jump to next prompt / live input
-      rename = "<leader>r",     -- rename terminal (buffer-local in terminals)
-      insert_resume = true,     -- i/a/I/A resume terminal input
-      persistent_esc = true,    -- <Esc> leaves input mode in persistent terminals
-    },
   },
   buffers = { enabled = true }, -- last-edit-buffer tracking autocmds
   ai = {
@@ -80,17 +73,63 @@ require("aiterm").setup({
   },
   treehouse = {
     enabled = false,            -- requires the treehouse CLI and shpool
-    mappings = false,           -- table to enable, see Keymaps below
   },
   run = {
     enabled = true,
     templates = {},             -- filetype -> template, merged over built-ins
-    popup_mappings = { default = "d", custom = "c", close = "q" },
   },
   tabline = { enabled = false },
-  ui = {
+  mappings = {
+    buffers = {
+      previous = false,
+      next = false,
+      alternate = false,
+      quit = false,
+    },
+    terminal = {
+      toggle = false,
+      new = false,
+      previous = false,
+      next = false,
+      prompt_prev = "[a",
+      prompt_next = "]a",
+      rename = "<leader>r",
+      insert_resume = { "i", "a", "I", "A" },
+      persistent_esc = "<Esc>",
+    },
+    ai = {
+      toggle = false,
+      new = false,
+      pick = false,
+      kill = false,
+      kill_all = false,
+      restore = false,
+    },
+    processes = {
+      pick = false,
+      new = false,
+      attach_last = false,
+      attach_all = false,
+      kill = false,
+      kill_all = false,
+    },
+    treehouse = {
+      acquire = false,
+      lease = false,
+      status = false,
+      pick = false,
+      return_ws = false,
+    },
+    run = {
+      current_file = false,
+      configure = false,
+      popup = { default = "d", custom = "c", close = "q" },
+    },
     picker = {
-      mappings = { down = "j", up = "k", confirm = "<CR>", cancel = { "q", "<Esc>" } },
+      down = "j",
+      up = "k",
+      confirm = "<CR>",
+      cancel = { "q", "<Esc>" },
     },
   },
 })
@@ -121,31 +160,30 @@ Every mapping it can create is listed here; each is configurable through the opt
 
 | Mapping | Option | Scope | Action |
 |---|---|---|---|
-| `[a` / `]a` | `terminal.mappings.prompt_prev/next` | terminal buffers | Jump between prompts in a transcript |
-| `<leader>r` | `terminal.mappings.rename` | terminal buffers | Rename terminal |
-| `i` `a` `I` `A` | `terminal.mappings.insert_resume` | terminal buffers | Resume terminal input from normal mode |
-| `<Esc>` | `terminal.mappings.persistent_esc` | persistent terminals | Leave terminal input mode |
-| `j`/`k`/`<CR>`/`q`/`<Esc>` | `ui.picker.mappings` | picker floats | Navigate / confirm / cancel |
-| `d` / `c` / `q` | `run.popup_mappings` | run-config float | Default / custom / close |
-| (disabled) | `treehouse.mappings.{acquire,lease,status,pick,return_ws}` | global | Treehouse actions |
+| (disabled) | `mappings.buffers.{previous,next,alternate,quit}` | global | File-buffer navigation and smart close |
+| (disabled) | `mappings.terminal.{toggle,new,previous,next}` | global | Plain terminal actions |
+| (disabled) | `mappings.ai.{toggle,new,pick,kill,kill_all,restore}` | global | AI session actions |
+| (disabled) | `mappings.processes.{pick,new,attach_last,attach_all,kill,kill_all}` | global | Persistent terminal actions |
+| (disabled) | `mappings.treehouse.{acquire,lease,status,pick,return_ws}` | global | Treehouse actions |
+| (disabled) | `mappings.run.{current_file,configure}` | global | Run current file or configure its runner |
+| `[a` / `]a` | `mappings.terminal.prompt_prev/next` | terminal buffers | Jump between prompts in a transcript |
+| `<leader>r` | `mappings.terminal.rename` | terminal buffers | Rename terminal |
+| `i` `a` `I` `A` | `mappings.terminal.insert_resume` | terminal buffers | Resume terminal input from normal mode |
+| `<Esc>` | `mappings.terminal.persistent_esc` | persistent terminals | Leave terminal input mode |
+| `j`/`k`/`<CR>`/`q`/`<Esc>` | `mappings.picker` | picker floats | Navigate / confirm / cancel |
+| `d` / `c` / `q` | `mappings.run.popup` | run-config float | Default / custom / close |
 | `r` / `q` | fixed, shown in the dialog | treehouse confirm float | Confirm / cancel workspace return |
 
-Suggested global mappings for your config (public API is plain functions):
+Example global mappings:
 
 ```lua
-local terminal = require("aiterm.terminal")
-local ai = require("aiterm.ai")
-local buffers = require("aiterm.buffers")
-local processes = require("aiterm.processes")
-
-vim.keymap.set("n", "<leader>t", terminal.toggle, { desc = "Toggle terminal" })
-vim.keymap.set("n", "<leader>T", terminal.open_new, { desc = "New terminal" })
-vim.keymap.set("n", "<leader>m", ai.toggle, { desc = "Toggle AI session" })
-vim.keymap.set("n", "<leader>M", ai.new_session, { desc = "New AI session" })
-vim.keymap.set("n", "<leader>nn", ai.pick, { desc = "AI session picker" })
-vim.keymap.set("n", "<leader>e", function() require("aiterm.run").exec_current_file() end, { desc = "Run current file" })
-vim.keymap.set("n", "qq", buffers.quit_current_or_window, { desc = "Smart close" })
-vim.keymap.set("n", "<leader>pp", processes.list, { desc = "Persistent terminals" })
+mappings = {
+  buffers = { previous = "<leader>,", next = "<leader>;", alternate = "<leader>y", quit = "qq" },
+  terminal = { toggle = "<leader>t", new = "<leader>T", previous = "<leader>,", next = "<leader>;" },
+  ai = { toggle = "<leader>m", new = "<leader>M", pick = "<leader>nn" },
+  processes = { pick = "<leader>pp", new = "<leader>pn" },
+  run = { current_file = "<leader>e" },
+}
 ```
 
 ## Commands

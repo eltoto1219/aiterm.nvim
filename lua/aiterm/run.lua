@@ -99,8 +99,30 @@ local function close_window(win)
     end
 end
 
+local function display_mapping(lhs)
+    if type(lhs) == "table" then
+        return table.concat(lhs, "/")
+    end
+    return lhs and tostring(lhs) or "-"
+end
+
+local function set_popup_mapping(bufnr, lhs, rhs, desc)
+    if lhs == false or lhs == nil or lhs == "" then
+        return
+    end
+
+    if type(lhs) == "table" then
+        for _, item in ipairs(lhs) do
+            set_popup_mapping(bufnr, item, rhs, desc)
+        end
+        return
+    end
+
+    vim.keymap.set("n", lhs, rhs, { buffer = bufnr, silent = true, desc = desc })
+end
+
 function M.configure_popup()
-    local mappings = config.opts.run.popup_mappings
+    local mappings = config.opts.mappings.run.popup
     local filetype = current_filetype()
     local current = current_runner_description()
     local buf = vim.api.nvim_create_buf(false, true)
@@ -114,9 +136,9 @@ function M.configure_popup()
         "filetype: " .. (filetype ~= "" and filetype or "<none>"),
         "current:  " .. current,
         "",
-        (mappings.default or "-") .. " : use default runner for this filetype",
-        (mappings.custom or "-") .. " : set custom command for this filetype",
-        (mappings.close or "-") .. " : close without changes",
+        display_mapping(mappings.default) .. " : use default runner for this filetype",
+        display_mapping(mappings.custom) .. " : set custom command for this filetype",
+        display_mapping(mappings.close) .. " : close without changes",
         "",
         "Placeholders: {file} {dir} {name} {stem}",
     }
@@ -137,34 +159,28 @@ function M.configure_popup()
         col = math.max(col, 0),
     })
 
-    if mappings.close then
-        vim.keymap.set("n", mappings.close, function()
-            close_window(win)
-        end, { buffer = buf, silent = true, desc = "Close run config" })
-    end
+    set_popup_mapping(buf, mappings.close, function()
+        close_window(win)
+    end, "Close run config")
 
-    if mappings.default then
-        vim.keymap.set("n", mappings.default, function()
-            set_override(filetype, nil)
-            close_window(win)
-            vim.notify("Using default runner for " .. filetype)
-        end, { buffer = buf, silent = true, desc = "Use default runner" })
-    end
+    set_popup_mapping(buf, mappings.default, function()
+        set_override(filetype, nil)
+        close_window(win)
+        vim.notify("Using default runner for " .. filetype)
+    end, "Use default runner")
 
-    if mappings.custom then
-        vim.keymap.set("n", mappings.custom, function()
-            vim.ui.input({
-                prompt = "Custom run command for " .. filetype .. ": ",
-                default = "",
-            }, function(input)
-                if input and input ~= "" then
-                    set_override(filetype, input)
-                    vim.notify("Saved session runner for " .. filetype)
-                end
-                close_window(win)
-            end)
-        end, { buffer = buf, silent = true, desc = "Set custom runner" })
-    end
+    set_popup_mapping(buf, mappings.custom, function()
+        vim.ui.input({
+            prompt = "Custom run command for " .. filetype .. ": ",
+            default = "",
+        }, function(input)
+            if input and input ~= "" then
+                set_override(filetype, input)
+                vim.notify("Saved session runner for " .. filetype)
+            end
+            close_window(win)
+        end)
+    end, "Set custom runner")
 end
 
 local function runnable_command()

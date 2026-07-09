@@ -13,6 +13,7 @@ local modules = {
     "aiterm.treehouse",
     "aiterm.run",
     "aiterm.tabline",
+    "aiterm.mappings",
     "aiterm.health",
     "aiterm.ui.picker",
     "aiterm.ui.input",
@@ -55,7 +56,10 @@ require("aiterm").setup({
         },
     },
     processes = { enabled = true, session_prefix = "custom-prefix-" },
-    treehouse = { enabled = true, mappings = { status = "<leader>fs" } },
+    treehouse = { enabled = true },
+    mappings = {
+        treehouse = { status = "<leader>fs" },
+    },
 })
 commands = vim.api.nvim_get_commands({})
 assert(commands.TerminalProcesses and commands.TerminalProcessNew, "processes commands registered when enabled")

@@ -76,7 +76,7 @@ function M.select(prompt, labels, on_choice, on_cancel)
         end
     end
 
-    local mappings = require("aiterm.config").opts.ui.picker.mappings
+    local mappings = require("aiterm.config").opts.mappings.picker
     set_keymaps(mappings.down, move(1), "Picker: next item")
     set_keymaps(mappings.up, move(-1), "Picker: previous item")
     set_keymaps("<Down>", move(1), "Picker: next item")
