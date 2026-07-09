@@ -194,6 +194,82 @@ local function codex_conversation_exists(entry)
     return false
 end
 
+local function codex_rollout_metadata(path)
+    for _, line in ipairs(vim.fn.readfile(path, "", 50)) do
+        local ok, item = pcall(vim.json.decode, line)
+        local payload = ok and type(item) == "table" and item.payload or nil
+        if
+            ok
+            and type(item) == "table"
+            and item.type == "session_meta"
+            and type(payload) == "table"
+            and type(payload.id) == "string"
+            and type(payload.cwd) == "string"
+        then
+            return payload.id, payload.cwd
+        end
+    end
+
+    return nil, nil
+end
+
+local function codex_rollouts_for_cwd(cwd)
+    local normalized_cwd = type(cwd) == "string" and vim.fs.normalize(cwd) or nil
+    local rollouts = {}
+
+    if not normalized_cwd then
+        return rollouts
+    end
+
+    for _, path in ipairs(vim.fn.globpath(M.codex_sessions_dir, "**/rollout-*.jsonl", false, true)) do
+        local id, rollout_cwd = codex_rollout_metadata(path)
+        if id and rollout_cwd and vim.fs.normalize(rollout_cwd) == normalized_cwd then
+            rollouts[#rollouts + 1] = {
+                id = id,
+                mtime = vim.fn.getftime(path),
+            }
+        end
+    end
+
+    table.sort(rollouts, function(a, b)
+        return a.mtime > b.mtime
+    end)
+
+    return rollouts
+end
+
+-- Older versions could persist several Codex entries with the same thread ID.
+-- Recover them from rollout metadata before restore so one thread is never
+-- resumed into multiple terminal buffers.
+local function repair_duplicate_codex_ids()
+    local used_ids = {}
+    local duplicates = {}
+
+    for key, entry in pairs(entries) do
+        if entry.kind == "codex" and type(entry.id) == "string" and entry.id ~= "" then
+            if used_ids[entry.id] then
+                duplicates[#duplicates + 1] = entry
+            else
+                used_ids[entry.id] = key
+            end
+        end
+    end
+
+    local changed = false
+    for _, entry in ipairs(duplicates) do
+        for _, rollout in ipairs(codex_rollouts_for_cwd(entry.cwd)) do
+            if not used_ids[rollout.id] then
+                entry.id = rollout.id
+                used_ids[rollout.id] = entry.key
+                changed = true
+                break
+            end
+        end
+    end
+
+    return changed
+end
+
 local function entry_is_restorable(entry)
     if type(entry.id) ~= "string" or entry.id == "" then
         return false
@@ -408,7 +484,23 @@ local function newest_codex_rollout(min_mtime, key)
 
     for _, path in ipairs(vim.fn.globpath(M.codex_sessions_dir, "**/rollout-*.jsonl", true, true)) do
         local mtime = vim.fn.getftime(path)
-        if mtime > newest_time and (claimed_codex_rollouts[path] == nil or claimed_codex_rollouts[path] == key) then
+        local id = path:match(uuid_pattern)
+        local claimed_by_entry = false
+        if id then
+            for entry_key, entry in pairs(entries) do
+                if entry_key ~= key and entry.kind == "codex" and entry.id == id then
+                    claimed_by_entry = true
+                    break
+                end
+            end
+        end
+
+        if
+            id
+            and not claimed_by_entry
+            and mtime > newest_time
+            and (claimed_codex_rollouts[path] == nil or claimed_codex_rollouts[path] == key)
+        then
             newest_path, newest_time = path, mtime
         end
     end
@@ -902,6 +994,9 @@ function M.setup()
 
     if config.opts.ai.restore then
         load_registry()
+        if repair_duplicate_codex_ids() then
+            save_registry()
+        end
     end
 
     local group = vim.api.nvim_create_augroup("AitermAISessions", { clear = true })
