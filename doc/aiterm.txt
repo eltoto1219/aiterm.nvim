@@ -101,7 +101,7 @@ create is configurable and carries a `desc`:
   mappings.terminal.prompt_prev = "[a"    prompt jump backwards (terminals)
   mappings.terminal.prompt_next = "]a"    prompt jump forwards (terminals)
   mappings.terminal.rename = "<leader>r"  rename terminal (terminals)
-  mappings.terminal.insert_resume         i/a/I/A resume input (terminals)
+  mappings.terminal.insert_resume         i/a/I/A resume input; preserves input cursor unless on the live input row
   mappings.terminal.persistent_esc        <Esc> leaves input (persistent)
   mappings.picker                         j/k/<CR>/q/<Esc> in pickers
   mappings.run.popup                      d/c/q in the run-config float
@@ -113,7 +113,7 @@ inside the dialog itself.
 6. COMMANDS                                                  *aiterm-commands*
 
 :Claude / :Codex / :<Kind>    New AI session of that kind
-:AISessions                   Pick a live or cached AI session
+:AISessions                   Pick a harness-prefixed live or cached AI session for the cwd
 :AISessionNew                 Pick a harness and spawn a fresh session
 :AISessionKill                Kill the current AI session, or pick one
 :AISessionKillAll             Kill every live AI session

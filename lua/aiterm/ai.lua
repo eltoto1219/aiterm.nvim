@@ -465,10 +465,23 @@ function M.is_ai_buffer(bufnr)
     return buffer_alive(bufnr) and vim.b[bufnr].aiterm_ai_kind ~= nil
 end
 
-local function live_ai_buffers()
+local function entry_matches_cwd(entry, scope_cwd)
+    if not scope_cwd then
+        return true
+    end
+    if type(entry.cwd) ~= "string" or entry.cwd == "" then
+        return false
+    end
+    return vim.fs.normalize(entry.cwd) == scope_cwd
+end
+
+local function live_ai_buffers(scope_cwd)
+    local scope = scope_cwd and vim.fs.normalize(scope_cwd) or nil
     local list = {}
     for bufnr in pairs(buffers) do
-        if buffer_alive(bufnr) then
+        local key = buffers[bufnr]
+        local entry = key and entries[key] or nil
+        if buffer_alive(bufnr) and entry and entry_matches_cwd(entry, scope) then
             list[#list + 1] = bufnr
         end
     end
@@ -543,7 +556,7 @@ local function restorable_entries(scope_cwd)
         if
             not entry_is_alive(key)
             and entry_is_restorable(entry)
-            and (not scope or vim.fs.normalize(entry.cwd or "") == scope)
+            and entry_matches_cwd(entry, scope)
         then
             list[#list + 1] = entry
         end
@@ -573,14 +586,20 @@ local function restore_cached(scope_cwd)
     return focus, #list
 end
 
+local function picker_label(entry, label, cached)
+    local suffix = cached and " (cached)" or ""
+    return string.format("%s: %s%s", entry.kind, label, suffix)
+end
+
 -- <leader>n: picker over the open AI buffers (named as in the tabline) plus
 -- cached sessions, which are resumed on selection.
 function M.pick()
-    local live = live_ai_buffers()
-    local cached = restorable_entries()
+    local cwd = vim.fn.getcwd()
+    local live = live_ai_buffers(cwd)
+    local cached = restorable_entries(cwd)
 
     if #live == 0 and #cached == 0 then
-        vim.notify("No AI harness sessions open or cached", vim.log.levels.INFO)
+        vim.notify("No AI harness sessions open or cached for this directory", vim.log.levels.INFO)
         return
     end
 
@@ -588,16 +607,19 @@ function M.pick()
     local actions = {}
 
     for _, bufnr in ipairs(live) do
+        local entry = entries[buffers[bufnr]]
         local label = terminal.label_for_buf(bufnr) or vim.fs.basename(vim.api.nvim_buf_get_name(bufnr))
-        labels[#labels + 1] = string.format("%2d. %s", #labels + 1, label)
-        actions[#actions + 1] = function()
-            focus_ai(bufnr)
+        if entry then
+            labels[#labels + 1] = string.format("%2d. %s", #labels + 1, picker_label(entry, label, false))
+            actions[#actions + 1] = function()
+                focus_ai(bufnr)
+            end
         end
     end
 
     for _, entry in ipairs(cached) do
         local label = entry.title or ("Unnamed " .. entry.kind)
-        labels[#labels + 1] = string.format("%2d. %s (cached)", #labels + 1, label)
+        labels[#labels + 1] = string.format("%2d. %s", #labels + 1, picker_label(entry, label, true))
         actions[#actions + 1] = function()
             spawn(entry, true)
         end
@@ -735,7 +757,7 @@ function M.setup()
             end
         end
         vim.api.nvim_create_user_command("AISessions", M.pick, {
-            desc = "Pick a live or cached AI session",
+            desc = "Pick a live or cached AI session for the current directory",
         })
         vim.api.nvim_create_user_command("AISessionNew", M.new_session, {
             desc = "Pick a harness and spawn a fresh AI session",

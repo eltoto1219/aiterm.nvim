@@ -153,8 +153,78 @@ local function safe_enew()
     end)
 end
 
-local function resume_terminal_input()
+local function terminal_keys(keys)
+    return vim.api.nvim_replace_termcodes(keys, true, false, true)
+end
+
+local function repeat_key(key, count)
+    if count <= 0 then
+        return ""
+    end
+    return string.rep(key, count)
+end
+
+local function terminal_cursor_keys(from, to)
+    local keys = {}
+    local row_delta = to[1] - from[1]
+    local col_delta = to[2] - from[2]
+
+    keys[#keys + 1] = repeat_key(row_delta > 0 and "<Down>" or "<Up>", math.abs(row_delta))
+    keys[#keys + 1] = repeat_key(col_delta > 0 and "<Right>" or "<Left>", math.abs(col_delta))
+
+    return table.concat(keys)
+end
+
+local function terminal_target_cursor(target)
+    return { target[1], math.max(target[2] - 1, 0) }
+end
+
+local function cursor_is_live_input(from, cursor)
+    return type(from) == "table" and cursor[1] == from[1]
+end
+
+local function resume_target_cursor(action)
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local target = { cursor[1], cursor[2] }
+    local line = vim.api.nvim_get_current_line()
+
+    if action == "a" then
+        target[2] = math.min(target[2] + 1, #line)
+    elseif action == "I" then
+        local first = line:find("%S")
+        target[2] = first and first - 1 or 0
+    elseif action == "A" then
+        target[2] = #line
+    end
+
+    return target
+end
+
+local function resume_terminal_input(action)
+    local bufnr = vim.api.nvim_get_current_buf()
+    local from = vim.b[bufnr].aiterm_terminal_input_cursor
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local to = resume_target_cursor(action)
+    local keys
+
+    if cursor_is_live_input(from, cursor) then
+        to = terminal_target_cursor(to)
+        keys = terminal_cursor_keys(from, to)
+    else
+        keys = ""
+    end
+
     vim.cmd.startinsert()
+    if keys ~= "" then
+        vim.schedule(function()
+            if vim.api.nvim_get_current_buf() == bufnr and M.is_terminal(bufnr) then
+                vim.api.nvim_feedkeys(terminal_keys(keys), "t", false)
+                if cursor_is_live_input(from, cursor) then
+                    vim.b[bufnr].aiterm_terminal_input_cursor = to
+                end
+            end
+        end)
+    end
 end
 
 function M.open_new()
@@ -674,14 +744,20 @@ function M.setup()
                 local lhs_list = type(mappings.insert_resume) == "table" and mappings.insert_resume
                     or { "i", "a", "I", "A" }
                 for _, lhs in ipairs(lhs_list) do
+                    if lhs == false or lhs == nil or lhs == "" then
+                        goto continue
+                    end
                     vim.keymap.set(
                         "n",
                         lhs,
-                        resume_terminal_input,
+                        function()
+                            resume_terminal_input(lhs)
+                        end,
                         vim.tbl_extend("force", opts, {
                             desc = "Return to terminal input mode",
                         })
                     )
+                    ::continue::
                 end
             end
             if mappings.rename then
@@ -697,6 +773,15 @@ function M.setup()
                         )
                     end
                 end
+            end
+        end,
+    })
+
+    vim.api.nvim_create_autocmd("TermLeave", {
+        group = group,
+        callback = function(event)
+            if M.is_terminal(event.buf) then
+                vim.b[event.buf].aiterm_terminal_input_cursor = vim.api.nvim_win_get_cursor(0)
             end
         end,
     })

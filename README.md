@@ -260,7 +260,7 @@ Every mapping it can create is listed here; each is configurable through the opt
 | (disabled) | `mappings.run.{current_file,configure}` | global | Run current file or configure its runner |
 | `[a` / `]a` | `mappings.terminal.prompt_prev/next` | terminal buffers | Jump between prompts in a transcript |
 | `<leader>r` | `mappings.terminal.rename` | terminal buffers | Rename terminal |
-| `i` `a` `I` `A` | `mappings.terminal.insert_resume` | terminal buffers | Resume terminal input from normal mode |
+| `i` `a` `I` `A` | `mappings.terminal.insert_resume` | terminal buffers | Resume terminal input from normal mode, preserving the input cursor unless used on the live input row |
 | `<Esc>` | `mappings.terminal.persistent_esc` | persistent terminals | Leave terminal input mode |
 | `j`/`k`/`<CR>`/`q`/`<Esc>` | `mappings.picker` | picker floats | Navigate / confirm / cancel |
 | `d` / `c` / `q` | `mappings.run.popup` | run-config float | Default / custom / close |
@@ -283,7 +283,7 @@ mappings = {
 | Command | Module | Action |
 |---|---|---|
 | `:Claude`, `:Codex`, ... | ai | New session (one command per configured kind) |
-| `:AISessions` | ai | Pick a live or cached session |
+| `:AISessions` | ai | Pick a harness-prefixed live or cached session for the current directory |
 | `:AISessionNew` | ai | Pick a harness and spawn a fresh session |
 | `:AISessionKill` / `:AISessionKillAll` | ai | Kill the current/picked session, or all of them |
 | `:AISessionRestore` | ai | Restore cached sessions for the current directory |
