@@ -96,7 +96,10 @@ function M.ensure_available(kind)
         return false
     end
 
-    local executable = provider and provider.executable or kind
+    local executable = provider and provider.executable
+    if not provider then
+        executable = kind
+    end
     if executable and vim.fn.executable(executable) ~= 1 then
         vim.notify(executable .. " is not installed or not on PATH", vim.log.levels.ERROR)
         return false
@@ -815,7 +818,10 @@ function M.autostart_kind()
             return nil
         end
         local provider = ai_provider(preferred)
-        local executable = provider and provider.executable or preferred
+        local executable = provider and provider.executable
+        if not provider then
+            executable = preferred
+        end
         if executable and vim.fn.executable(executable) ~= 1 then
             vim.notify(executable .. " is not installed or not on PATH", vim.log.levels.ERROR)
             return nil
@@ -825,7 +831,10 @@ function M.autostart_kind()
 
     for _, kind in ipairs(M.kind_names()) do
         local provider = ai_provider(kind)
-        local executable = provider and provider.executable or kind
+        local executable = provider and provider.executable
+        if not provider then
+            executable = kind
+        end
         if command_builder(kind) and (not executable or vim.fn.executable(executable) == 1) then
             return kind
         end
