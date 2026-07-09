@@ -8,6 +8,8 @@ local other_cwd = vim.fs.joinpath(temp, "other")
 vim.env.XDG_STATE_HOME = vim.fs.joinpath(temp, "state")
 vim.fn.mkdir(current_cwd, "p")
 vim.fn.mkdir(other_cwd, "p")
+current_cwd = vim.fs.normalize(vim.uv.fs_realpath(current_cwd) or current_cwd)
+other_cwd = vim.fs.normalize(vim.uv.fs_realpath(other_cwd) or other_cwd)
 vim.opt.rtp:prepend(root)
 
 local config = require("aiterm.config")

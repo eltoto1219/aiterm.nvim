@@ -4,9 +4,10 @@ local temp = vim.fn.tempname()
 local bin = vim.fs.joinpath(temp, "bin")
 
 vim.fn.mkdir(bin, "p")
+local extension = vim.fn.has("win32") == 1 and ".cmd" or ""
 for _, name in ipairs({ "claude", "codex" }) do
-    local path = vim.fs.joinpath(bin, name)
-    vim.fn.writefile({ "#!/bin/sh", "sleep 30" }, path)
+    local path = vim.fs.joinpath(bin, name .. extension)
+    vim.fn.writefile(extension == ".cmd" and { "@echo off", "timeout /t 30 >nul" } or { "#!/bin/sh", "sleep 30" }, path)
     vim.fn.setfperm(path, "rwxr-xr-x")
 end
 
