@@ -15,7 +15,6 @@ local pending_resumes = {}
 local unnamed_counter = 0
 local exiting = false
 local last_ai_bufnr = nil
-local toggle_return_bufnr = nil
 
 M.codex_sessions_dir = vim.fs.joinpath(vim.env.HOME or "~", ".codex", "sessions")
 
@@ -504,30 +503,22 @@ local function focus_ai(bufnr)
 end
 
 -- <leader>m: like <leader>t but for AI buffers. From a non-AI buffer, jump to
--- the last AI buffer used (or offer to spawn one); from an AI buffer, jump
--- back to wherever the toggle came from.
+-- the last AI buffer used (or offer to spawn one); from an AI buffer, prefer
+-- the last real file buffer, then fall back to the most recent non-AI buffer.
 function M.toggle()
     local current = vim.api.nvim_get_current_buf()
 
     if M.is_ai_buffer(current) then
-        local target = toggle_return_bufnr
-        if
-            not (
-                target
-                and vim.api.nvim_buf_is_valid(target)
-                and vim.fn.buflisted(target) == 1
-                and not M.is_ai_buffer(target)
-            )
-        then
-            target = require("aiterm.buffers").get_edit_return_buf()
-        end
+        local bufmod = require("aiterm.buffers")
+        local target = bufmod.get_workflow_return_buf(M.is_ai_buffer)
         if target then
             pcall(vim.api.nvim_set_current_buf, target)
+            if vim.bo[target].buftype == "terminal" then
+                vim.cmd.startinsert()
+            end
         end
         return
     end
-
-    toggle_return_bufnr = current
 
     local target_ai = M.get_last_ai_buf()
     if target_ai and focus_ai(target_ai) then
@@ -539,11 +530,6 @@ end
 
 -- <leader>M: pick a harness and spawn a fresh AI session buffer.
 function M.new_session()
-    local current = vim.api.nvim_get_current_buf()
-    if not M.is_ai_buffer(current) then
-        toggle_return_bufnr = current
-    end
-
     local kinds = M.kind_names()
     require("aiterm.ui.picker").select("New AI session:", kinds, function(index)
         M.open(kinds[index])
@@ -618,10 +604,6 @@ function M.pick()
     end
 
     require("aiterm.ui.picker").select("AI sessions:", labels, function(index)
-        local current = vim.api.nvim_get_current_buf()
-        if not M.is_ai_buffer(current) then
-            toggle_return_bufnr = current
-        end
         actions[index]()
     end)
 end

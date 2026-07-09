@@ -86,9 +86,10 @@ for _, map in ipairs(vim.api.nvim_get_keymap("n")) do
 end
 assert(treehouse_map, "treehouse mapping registered from opts")
 
--- Toggle flow: <leader>t from a plain terminal returns to the AI buffer it
--- came from, not the last file buffer.
+-- Toggle flow: leaving terminal or AI workflow prefers the last real file
+-- buffer instead of acting like a generic alternate-buffer jump.
 local terminal = require("aiterm.terminal")
+local ai_sessions = require("aiterm.ai")
 vim.cmd.edit(vim.fn.tempname())
 local file_buf = vim.api.nvim_get_current_buf()
 local ai_buf = terminal.open_command({ "sh" }, "ai-test", { ai_kind = "claude" })
@@ -100,7 +101,10 @@ assert(
     "toggle from AI buffer lands in a plain terminal"
 )
 terminal.toggle()
-assert(vim.api.nvim_get_current_buf() == ai_buf, "toggle returns to the AI buffer it came from")
+assert(vim.api.nvim_get_current_buf() == file_buf, "terminal toggle prefers the last file buffer")
+vim.cmd.buffer(ai_buf)
+ai_sessions.toggle()
+assert(vim.api.nvim_get_current_buf() == file_buf, "AI toggle prefers the last file buffer")
 terminal.toggle()
 assert(vim.api.nvim_get_current_buf() == term_buf, "toggle re-enters the plain terminal")
 vim.cmd.buffer(file_buf)

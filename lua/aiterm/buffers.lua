@@ -151,6 +151,44 @@ function M.get_last_edit_buf()
     return nil
 end
 
+local function usable_return_buf(bufnr, current, is_current_type)
+    return bufnr
+        and bufnr ~= current
+        and vim.api.nvim_buf_is_valid(bufnr)
+        and vim.fn.buflisted(bufnr) == 1
+        and not is_current_type(bufnr)
+end
+
+local function recent_listed_buffers()
+    local buffers = listed_buffers()
+    table.sort(buffers, function(a, b)
+        return (a.lastused or 0) > (b.lastused or 0)
+    end)
+    return buffers
+end
+
+function M.get_workflow_return_buf(is_current_type)
+    local last_edit = M.get_last_edit_buf()
+    if last_edit then
+        return last_edit
+    end
+
+    local current = vim.api.nvim_get_current_buf()
+    for _, bufnr in ipairs({ last_bufnr, vim.fn.bufnr("#") }) do
+        if usable_return_buf(bufnr, current, is_current_type) then
+            return bufnr
+        end
+    end
+
+    for _, bufinfo in ipairs(recent_listed_buffers()) do
+        if usable_return_buf(bufinfo.bufnr, current, is_current_type) then
+            return bufinfo.bufnr
+        end
+    end
+
+    return nil
+end
+
 -- Where a terminal/AI toggle should land when jumping "back": the last file
 -- buffer, else the alternate file, else any listed non-terminal buffer (e.g.
 -- the unnamed startup buffer when nvim was opened without a file).
