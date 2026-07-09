@@ -103,7 +103,6 @@ require("aiterm.ui.picker").select("Cancel on leave:", { "Alpha", "Beta" }, func
 end)
 
 prompt_winid = vim.api.nvim_get_current_win()
-prompt_bufnr = vim.api.nvim_win_get_buf(prompt_winid)
 list_winid = nil
 for _, winid in ipairs(vim.api.nvim_list_wins()) do
     if winid ~= prompt_winid and vim.api.nvim_win_get_config(winid).relative == "editor" then
