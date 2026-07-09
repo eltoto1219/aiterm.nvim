@@ -3,6 +3,11 @@ local script = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p")
 local root = vim.fs.normalize(vim.fs.joinpath(vim.fs.dirname(script), ".."))
 vim.opt.rtp:prepend(root)
 
+if vim.fn.has("win32") == 1 then
+    print("terminal_insert_resume skipped on Windows")
+    return
+end
+
 require("aiterm").setup({
     terminal = { style = false },
 })
