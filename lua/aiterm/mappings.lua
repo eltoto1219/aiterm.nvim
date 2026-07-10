@@ -85,6 +85,15 @@ function M.setup()
         set("n", mappings.treehouse.return_ws, treehouse.return_workspace, "Treehouse: return leased workspace")
     end
 
+    if config.opts.graphify.enabled then
+        local graphify = require("aiterm.graphify")
+        set_pair(mappings.graphify.status, graphify.show_status, "Graphify: status")
+        set_pair(mappings.graphify.build, graphify.build_here, "Graphify: build graph")
+        set_pair(mappings.graphify.update, graphify.update_here, "Graphify: update graph")
+        set_pair(mappings.graphify.query, graphify.query_prompt, "Graphify: query graph")
+        set_pair(mappings.graphify.open, graphify.open_html, "Graphify: open graph")
+    end
+
     if config.opts.run.enabled then
         local run = require("aiterm.run")
         set("n", mappings.run.current_file, run.exec_current_file, "Run current file")

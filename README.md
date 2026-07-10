@@ -235,6 +235,22 @@ require("aiterm").setup({
 })
 ```
 
+Enable Graphify when you want AI sessions to work from a repository knowledge graph before searching raw files:
+
+```sh
+uv tool install graphifyy
+```
+
+```lua
+require("aiterm").setup({
+  graphify = { enabled = true },
+})
+```
+
+Graphify is optional and is not installed by `aiterm.nvim`.
+The first graph build creates a safe baseline `.graphifyignore` only when the repository does not already have one.
+Existing `.graphifyignore` files are never changed by `aiterm.nvim`.
+
 ## Mental Model
 
 `aiterm.nvim` is built around terminal buffers.
@@ -244,6 +260,7 @@ Plain terminals are normal `:terminal` buffers with plugin-managed naming, toggl
 AI sessions are terminal buffers with a configured harness such as `claude`, `codex`, or a provider-defined command.
 Persistent processes are named shell sessions managed by `shpool`, so the process can outlive Neovim.
 Treehouse workspaces are isolated git worktrees managed by the `treehouse` CLI and paired with persistent sessions.
+Graphify builds a queryable code graph for an opted-in Git repository and runs separately from the AI terminal.
 Providers are extension points for adding AI harnesses and integration hooks without patching the plugin.
 
 Session state is keyed by project directory.
@@ -423,6 +440,71 @@ require("aiterm").setup({
   treehouse = {
     enabled = false,            -- requires the treehouse CLI and shpool
   },
+  graphify = {
+    enabled = false,            -- requires the graphify CLI
+    executable = "graphify",
+    root = {
+      markers = { ".git" },
+      fallback = "cwd",        -- cwd | disabled
+      nested_repositories = "nearest", -- nearest | outermost
+    },
+    lifecycle = "on_ai_start", -- manual | on_ai_start | on_workspace_enter
+    check = {
+      on_dir_changed = true,
+      on_ai_start = true,
+      on_treehouse_workspace = true,
+      debounce_ms = 500,
+    },
+    missing_graph = "ask",     -- never | ask | build
+    stale_graph = "ask",       -- never | ask | update
+    stale_detection = "git",   -- git | timestamp | always
+    allow_dirty_worktree = true,
+    remember_skips = "session", -- never | session | repository
+    safety = {
+      require_git_repository = true,
+      max_files_for_automatic_build = 5000,
+      max_bytes_for_automatic_build = 100 * 1024 * 1024,
+    },
+    build = {
+      code_only = true,
+      extra_args = {},
+      timeout_ms = 15 * 60 * 1000,
+      output = "terminal",     -- terminal | scratch | silent
+      terminal_label = "G: build",
+    },
+    update = {
+      extra_args = {},
+      timeout_ms = 15 * 60 * 1000,
+      output = "terminal",     -- terminal | scratch | silent
+      terminal_label = "G: update",
+    },
+    query = {
+      output = "terminal",     -- terminal | scratch | silent
+      timeout_ms = 60 * 1000,
+      terminal_label = "G: query",
+    },
+    ignore_file = {
+      enabled = true,
+      path = ".graphifyignore",
+      create_if_missing = true,
+      profile = "safe",        -- minimal | safe
+    },
+    agents = {
+      check_on_start = true,
+      warn_when_missing = true,
+      providers = { "codex", "claude" },
+    },
+    ui = {
+      notifications = true,
+      open_html = "system",    -- system | disabled
+      confirm = nil,            -- nil uses vim.ui.select
+    },
+    callbacks = {
+      on_status = nil,          -- fun(status, root)
+      on_complete = nil,        -- fun(result, root)
+      on_error = nil,           -- fun(result, root)
+    },
+  },
   run = {
     enabled = true,
     templates = {},             -- filetype -> template, merged over built-ins
@@ -469,6 +551,13 @@ require("aiterm").setup({
       pick = false,
       return_ws = false,
     },
+    graphify = {
+      status = false,
+      build = false,
+      update = false,
+      query = false,
+      open = false,
+    },
     run = {
       current_file = false,
       configure = false,
@@ -483,6 +572,94 @@ require("aiterm").setup({
   },
 })
 ```
+
+## Graphify Workflow
+
+Graphify support is an opt-in codebase-graph workflow for AI sessions and Treehouse workspace agents.
+`aiterm.nvim` resolves the repository root, checks for `graphify-out/graph.json`, and starts Graphify jobs asynchronously.
+It does not block the AI session while a graph builds or updates.
+
+With the default `lifecycle = "on_ai_start"`, a new AI session follows this flow:
+
+```text
+Start :Codex, :Claude, or a Treehouse workspace agent
+  -> resolve the Git repository root
+  -> inspect graph presence and Git freshness
+  -> prompt to build a missing graph or update a stale graph
+  -> start or continue the AI session immediately
+  -> show Graphify completion or failure in a terminal, scratch buffer, or notification
+```
+
+The default build runs `graphify extract <root> --code-only` followed by `graphify cluster-only <root> --no-label`.
+This parses code locally and avoids semantic document extraction, API keys, and uploads by default.
+The clustering step generates `GRAPH_REPORT.md` and `graph.html` without community-label LLM calls.
+Set `graphify.build.code_only = false` only when you intentionally want Graphify to process supported non-code content.
+
+The plugin creates this baseline `.graphifyignore` when the file is absent and `graphify.ignore_file.create_if_missing = true`:
+
+```gitignore
+# Environments, dependencies, and caches
+.venv/
+venv/
+env/
+__pycache__/
+node_modules/
+
+# Build and test output
+dist/
+build/
+coverage/
+target/
+
+# Media and large data
+*.png
+*.mp4
+*.mp3
+*.parquet
+*.sqlite
+```
+
+The real generated profile also ignores common image, video, audio, and scientific-data extensions.
+It intentionally keeps Markdown, JSON, YAML, TOML, SVG, and generic `data/` directories because they can be valuable project context.
+
+### Your Responsibilities
+
+- Install Graphify yourself with `uv tool install graphifyy`.
+- Keep the Graphify executable on the `PATH` inherited by Neovim.
+- Review the generated `.graphifyignore` and add repository-specific exclusions.
+- Decide whether `graphify-out/` should be committed for your team or ignored locally.
+- Run `graphify codex install` and or `graphify claude install` inside a repository when you want those agents to prefer graph queries.
+- Review Graphify-generated agent instruction changes before committing them.
+- Treat graph results as navigation hints and read the relevant source before making edits.
+- Update Graphify within the version range tested by your setup when Graphify changes its CLI.
+
+`aiterm.nvim` never installs Graphify, edits an existing `.graphifyignore`, changes `.gitignore`, installs Git hooks, rewrites `AGENTS.md`, or starts an HTTP server.
+MCP setup is intentionally outside this first integration release.
+
+### Graphify Commands
+
+| Command | Action |
+|---|---|
+| `:AitermGraphifyStatus` | Show executable, graph, and freshness status for the current repository. |
+| `:AitermGraphifyBuild` | Build a code-only graph and create a missing baseline `.graphifyignore`. |
+| `:AitermGraphifyUpdate[!]` | Incrementally update the graph, or force an update with `!`. |
+| `:AitermGraphifyQuery {question}` | Query the current repository graph. |
+| `:AitermGraphifyExplain {node}` | Explain a graph node and its neighbors. |
+| `:AitermGraphifyPath {source} {target}` | Find a shortest graph path between two node names. |
+| `:AitermGraphifyOpen` | Open `graphify-out/graph.html` when Graphify generated it. |
+
+### Graphify Agent Guidance
+
+The Graphify CLI owns agent-specific guidance.
+Run one or both commands explicitly in each repository:
+
+```sh
+graphify codex install
+graphify claude install
+```
+
+`aiterm.nvim` checks whether Graphify guidance appears in `AGENTS.md` or `CLAUDE.md` and warns once per repository when it is missing.
+It does not install the guidance because those files are repository-owned instructions.
 
 ### A note on permission-skipping flags
 
@@ -514,6 +691,7 @@ Every mapping it can create is listed here; each is configurable through the opt
 | (disabled) | `mappings.ai.{toggle,new,pick,kill,kill_all,restore}` | global | AI session actions |
 | (disabled) | `mappings.processes.{pick,new,attach_last,attach_all,kill,kill_all}` | global | Persistent terminal actions |
 | (disabled) | `mappings.treehouse.{acquire,lease,status,pick,return_ws}` | global | Treehouse actions |
+| (disabled) | `mappings.graphify.{status,build,update,query,open}` | global | Graphify graph actions |
 | (disabled) | `mappings.run.{current_file,configure}` | global | Run current file or configure its runner |
 | `[a` / `]a` | `mappings.terminal.prompt_prev/next` | terminal buffers | Jump between prompts in a transcript |
 | `<leader>r` | `mappings.terminal.rename` | terminal buffers | Rename terminal |
@@ -531,6 +709,7 @@ mappings = {
   terminal = { toggle = "<leader>t", new = "<leader>T", previous = "<leader>,", next = "<leader>;" },
   ai = { toggle = "<leader>m", new = "<leader>M", pick = "<leader>nn" },
   processes = { pick = "<leader>pp", new = "<leader>pn" },
+  graphify = { status = "<leader>gs", build = "<leader>gb", query = "<leader>gq" },
   run = { current_file = "<leader>e" },
 }
 ```
@@ -549,6 +728,7 @@ mappings = {
 | `:TerminalConfig` | run | Configure the run command for the current filetype |
 | `:TerminalProcesses`, `:TerminalProcessNew`, `:TerminalProcessKill`, `:TerminalProcessKillAll`, `:TerminalProcessAttachLast`, `:TerminalProcessAttachAll` | processes | Persistent session management |
 | `:TreehouseWorkspaces`, `:TreehouseAcquire`, `:TreehouseLease`, `:TreehouseStatus`, `:TreehouseReturn` | treehouse | Workspace management |
+| `:AitermGraphifyStatus`, `:AitermGraphifyBuild`, `:AitermGraphifyUpdate`, `:AitermGraphifyQuery`, `:AitermGraphifyExplain`, `:AitermGraphifyPath`, `:AitermGraphifyOpen` | graphify | Repository graph status, lifecycle, and queries |
 
 ## Tabline / statusline integration
 
@@ -640,6 +820,7 @@ Use `opts.ai.kinds` instead when the harness belongs only to one local Neovim co
 - `require("aiterm.buffers")`: `forward`, `backward`, `alternate`, `quit_current_or_window`
 - `require("aiterm.processes")`: `list`, `new`, `attach_last`, `attach_all_cwd`, `kill_current_or_select`, `kill_all`
 - `require("aiterm.treehouse")`: `acquire_disposable`, `acquire_leased`, `status`, `pick`, `return_workspace`, `statusline`
+- `require("aiterm.graphify")`: `status`, `build`, `update`, `query`, `explain`, `path`, `open_html`
 - `require("aiterm.ui.picker").select(prompt, labels, on_choice, on_cancel?)`: dependency-free searchable picker
 - `require("aiterm").register_provider(type, name, spec, opts?)`: register an extension provider
 
@@ -652,6 +833,8 @@ AI session metadata is stored there so `:AISessions` and `:AISessionRestore` can
 Terminal buffers themselves are still Neovim terminal buffers, so a plain terminal process does not survive Neovim unless it is backed by `shpool`.
 Persistent process sessions live in `shpool`, not in the aiterm state directory.
 Treehouse worktrees live under the treehouse root configured by the `treehouse` CLI.
+Graphify build snapshots live in `stdpath("state")/aiterm/graphify.json`.
+Graphify graph output and `.graphifyignore` always live in the repository that owns the graph.
 
 Deleting `stdpath("state")/aiterm/ai_sessions.json` forgets cached AI session metadata.
 It does not delete external Codex, Claude, shpool, or treehouse state.
@@ -675,6 +858,10 @@ On macOS with Homebrew, make sure the service is running if you expect the daemo
 
 If treehouse commands are unavailable, check `treehouse --version`, `git --version`, and `shpool --version`.
 Treehouse support requires both the treehouse CLI and persistent process support.
+
+If Graphify commands are unavailable, run `graphify --help` from the same shell that launches Neovim.
+Install the official package with `uv tool install graphifyy`, then run `:checkhealth aiterm`.
+If a graph is unexpectedly stale, run `:AitermGraphifyUpdate` or `:AitermGraphifyUpdate!` after a refactor that removed files.
 
 If picker navigation feels wrong, remember that picker mappings are local to the picker floats.
 Normal-mode `j` and `k` cycle options by default, and entering insert mode focuses the search prompt.

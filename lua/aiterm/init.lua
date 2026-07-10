@@ -26,6 +26,9 @@ function M.setup(opts)
     if config.opts.treehouse.enabled then
         require("aiterm.treehouse").setup()
     end
+    if config.opts.graphify.enabled then
+        require("aiterm.graphify").setup()
+    end
     if config.opts.run.enabled then
         require("aiterm.run").register()
     end

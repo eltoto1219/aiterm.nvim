@@ -68,6 +68,34 @@ function M.check()
         health.info("disabled; install claude/codex only if you enable this module")
     end
 
+    if opts.graphify.enabled then
+        health.start("aiterm: Graphify")
+        local graphify = require("aiterm.graphify")
+        binary(
+            health,
+            opts.graphify.executable,
+            true,
+            "install it with `uv tool install graphifyy` or disable opts.graphify"
+        )
+        health.info("lifecycle: " .. opts.graphify.lifecycle)
+        health.info("missing graph policy: " .. opts.graphify.missing_graph)
+        health.info("stale graph policy: " .. opts.graphify.stale_graph)
+        local status = graphify.status()
+        health.info(
+            "current repository graph: " .. status.kind .. (status.message and " (" .. status.message .. ")" or "")
+        )
+        for provider, present in pairs(graphify.guidance_status(status.root)) do
+            if present then
+                health.ok("Graphify " .. provider .. " guidance found")
+            else
+                health.info("Graphify " .. provider .. " guidance not found; setup stays manual")
+            end
+        end
+    else
+        health.start("aiterm: Graphify")
+        health.info("disabled; install graphifyy only if you enable this module")
+    end
+
     if opts.processes.enabled then
         health.start("aiterm: persistent processes")
         local backend = require("aiterm.process_backend")

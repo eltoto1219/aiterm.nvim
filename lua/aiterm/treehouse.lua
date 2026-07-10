@@ -437,7 +437,7 @@ local function offer_agent(bufnr, path)
             focus_terminal()
             return
         end
-        ai_sessions.prepare_workspace(kind, path)
+        ai_sessions.prepare_workspace(kind, path, { source = "treehouse" })
         vim.api.nvim_chan_send(vim.bo[bufnr].channel, ai_sessions.shell_command(kind) .. "\r")
         focus_terminal()
     end, focus_terminal)

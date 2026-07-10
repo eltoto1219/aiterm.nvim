@@ -596,12 +596,17 @@ local function trust_claude_workspace(cwd)
     vim.fn.writefile({ vim.json.encode(state) }, path)
 end
 
-function M.prepare_workspace(kind, cwd)
+function M.prepare_workspace(kind, cwd, context)
     local provider = ai_provider(kind)
     if provider and provider.prepare_workspace then
         provider.prepare_workspace(cwd)
     elseif kind == "claude" then
         trust_claude_workspace(cwd)
+    end
+
+    if config.opts.graphify.enabled then
+        context = vim.tbl_extend("force", { kind = kind }, context or {})
+        require("aiterm.graphify").prepare_workspace(cwd, context)
     end
 end
 

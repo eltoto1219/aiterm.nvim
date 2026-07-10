@@ -294,6 +294,9 @@ function M.open_command(command, label, opts)
     if opts and opts.cwd and vim.fn.isdirectory(opts.cwd) == 1 then
         job_opts.cwd = opts.cwd
     end
+    if opts and opts.on_exit then
+        job_opts.on_exit = opts.on_exit
+    end
 
     vim.fn.termopen(command, job_opts)
     vim.schedule(M.refresh_names)

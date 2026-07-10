@@ -45,6 +45,71 @@ M.defaults = {
     treehouse = {
         enabled = false, -- requires the treehouse CLI and shpool
     },
+    graphify = {
+        enabled = false, -- requires the graphify CLI
+        executable = "graphify",
+        root = {
+            markers = { ".git" },
+            fallback = "cwd", -- cwd | disabled
+            nested_repositories = "nearest", -- nearest | outermost
+        },
+        lifecycle = "on_ai_start", -- manual | on_ai_start | on_workspace_enter
+        check = {
+            on_dir_changed = true,
+            on_ai_start = true,
+            on_treehouse_workspace = true,
+            debounce_ms = 500,
+        },
+        missing_graph = "ask", -- never | ask | build
+        stale_graph = "ask", -- never | ask | update
+        stale_detection = "git", -- git | timestamp | always
+        allow_dirty_worktree = true,
+        remember_skips = "session", -- never | session | repository
+        safety = {
+            require_git_repository = true,
+            max_files_for_automatic_build = 5000,
+            max_bytes_for_automatic_build = 100 * 1024 * 1024,
+        },
+        build = {
+            code_only = true,
+            extra_args = {},
+            timeout_ms = 15 * 60 * 1000,
+            output = "terminal", -- terminal | scratch | silent
+            terminal_label = "G: build",
+        },
+        update = {
+            extra_args = {},
+            timeout_ms = 15 * 60 * 1000,
+            output = "terminal", -- terminal | scratch | silent
+            terminal_label = "G: update",
+        },
+        query = {
+            output = "terminal", -- terminal | scratch | silent
+            timeout_ms = 60 * 1000,
+            terminal_label = "G: query",
+        },
+        ignore_file = {
+            enabled = true,
+            path = ".graphifyignore",
+            create_if_missing = true,
+            profile = "safe", -- minimal | safe
+        },
+        agents = {
+            check_on_start = true,
+            warn_when_missing = true,
+            providers = { "codex", "claude" },
+        },
+        ui = {
+            notifications = true,
+            open_html = "system", -- system | disabled
+            confirm = nil, -- nil uses vim.ui.select
+        },
+        callbacks = {
+            on_status = nil,
+            on_complete = nil,
+            on_error = nil,
+        },
+    },
     run = {
         enabled = true, -- :TerminalConfig + exec_current_file()
         templates = {}, -- filetype -> command template, merged over built-ins
@@ -92,6 +157,13 @@ M.defaults = {
             status = false,
             pick = false,
             return_ws = false,
+        },
+        graphify = {
+            status = false,
+            build = false,
+            update = false,
+            query = false,
+            open = false,
         },
         run = {
             current_file = false,
