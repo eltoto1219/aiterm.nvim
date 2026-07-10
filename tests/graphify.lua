@@ -161,10 +161,7 @@ vim.fn.executable = function(_)
 end
 assert(graphify.open_html(repository), "Graphify falls back to Neovim's Windows opener")
 assert(opener_argv == nil, "Windows fallback does not invoke a Unix browser command")
-assert(
-    system_open_path == vim.fs.joinpath(repository, "graphify-out", "graph.html"),
-    "Windows fallback receives the generated HTML path"
-)
+assert(system_open_path == expected_html, "Windows fallback receives the generated HTML path")
 
 require("aiterm.config").opts.graphify.ui.open_html = { "custom-browser", "--new-window" }
 assert(graphify.open_html(repository), "Graphify accepts an OS-independent custom browser command")
@@ -172,7 +169,7 @@ assert(
     vim.deep_equal(opener_argv, {
         "custom-browser",
         "--new-window",
-        vim.fs.joinpath(repository, "graphify-out", "graph.html"),
+        expected_html,
     }),
     "custom browser argv is passed without shell parsing"
 )
