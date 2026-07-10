@@ -205,32 +205,43 @@ function M.ensure_ignore(root)
     return true
 end
 
-local function graph_output_ignore_present(lines)
+local function normalize_ignore_pattern(pattern)
+    return vim.trim(pattern):gsub("^/", ""):gsub("/$", "")
+end
+
+local function ignore_rule_present(lines, rule)
+    local target = normalize_ignore_pattern(rule)
     for _, line in ipairs(lines) do
-        local pattern = vim.trim(line)
-        if
-            pattern == "graphify-out"
-            or pattern == "graphify-out/"
-            or pattern == "/graphify-out"
-            or pattern == "/graphify-out/"
-        then
+        local pattern = normalize_ignore_pattern(line)
+        if pattern == target or (pattern ~= "" and vim.startswith(target, pattern .. "/")) then
             return true
         end
     end
     return false
 end
 
-local function append_graph_output_ignore(path)
+local function append_ignore_rule(path, rule)
     local lines = vim.fn.filereadable(path) == 1 and vim.fn.readfile(path) or {}
-    if graph_output_ignore_present(lines) then
+    if ignore_rule_present(lines, rule) then
         return false
     end
     if #lines > 0 and lines[#lines] ~= "" then
         lines[#lines + 1] = ""
     end
-    lines[#lines + 1] = "graphify-out/"
+    lines[#lines + 1] = rule
     vim.fn.writefile(lines, path)
     return true
+end
+
+local function ensure_cache_git_policy(root)
+    if opts().git.include_cache then
+        return false
+    end
+    local changed = append_ignore_rule(vim.fs.joinpath(root, ".gitignore"), "graphify-out/cache/")
+    if changed then
+        notify("ignored graphify-out/cache/ in .gitignore")
+    end
+    return changed
 end
 
 function M.ignore_graph_output(root)
@@ -242,12 +253,12 @@ function M.ignore_graph_output(root)
     M.ensure_ignore(root)
     local updated = {}
     local gitignore = vim.fs.joinpath(root, ".gitignore")
-    if append_graph_output_ignore(gitignore) then
+    if append_ignore_rule(gitignore, "graphify-out/") then
         updated[#updated + 1] = ".gitignore"
     end
 
     local graphifyignore = M.ignore_path(root)
-    if append_graph_output_ignore(graphifyignore) then
+    if append_ignore_rule(graphifyignore, "graphify-out/") then
         updated[#updated + 1] = vim.fs.basename(graphifyignore)
     end
 
@@ -562,6 +573,10 @@ local function start_job(action, root, argument, options)
             notify("automatic " .. action .. " skipped because the worktree is dirty", vim.log.levels.WARN)
             return false
         end
+    end
+
+    if action == "build" or action == "update" then
+        ensure_cache_git_policy(root)
     end
 
     if action == "build" then

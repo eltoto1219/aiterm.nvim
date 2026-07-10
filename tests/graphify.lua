@@ -75,6 +75,8 @@ assert(
     vim.fn.filereadable(vim.fs.joinpath(repository, "graphify-out", "graph.html")) == 1,
     "Graphify build writes graph HTML"
 )
+local initial_gitignore = table.concat(vim.fn.readfile(vim.fs.joinpath(repository, ".gitignore")), "\n")
+assert(initial_gitignore:find("graphify-out/cache/", 1, true), "Graphify cache is excluded from Git by default")
 
 local opener_argv = nil
 local system_open_path = nil
@@ -294,11 +296,34 @@ assert(graphifyignore:find("node_modules/", 1, true), "output policy preserves t
 assert(graphify.ignore_graph_output(policy_repository), "output ignore policy remains callable")
 gitignore = table.concat(vim.fn.readfile(vim.fs.joinpath(policy_repository, ".gitignore")), "\n")
 graphifyignore = table.concat(vim.fn.readfile(vim.fs.joinpath(policy_repository, ".graphifyignore")), "\n")
-assert(select(2, gitignore:gsub("graphify%-out/", "")) == 1, "output policy does not duplicate .gitignore rules")
+local graph_output_rules = 0
+for _, line in ipairs(vim.split(gitignore, "\n", { plain = true })) do
+    if line == "graphify-out/" then
+        graph_output_rules = graph_output_rules + 1
+    end
+end
+assert(graph_output_rules == 1, "output policy does not duplicate .gitignore rules")
 assert(
     select(2, graphifyignore:gsub("graphify%-out/", "")) == 1,
     "output policy does not duplicate .graphifyignore rules"
 )
+
+local included_cache_root = vim.fs.joinpath(temporary, "included-cache")
+vim.fn.mkdir(included_cache_root, "p")
+vim.fn.writefile({ "return {}" }, vim.fs.joinpath(included_cache_root, "example.lua"))
+require("aiterm.config").opts.graphify.git.include_cache = true
+assert(graphify.build(included_cache_root, { output = "scratch" }), "cache-included Graphify build starts")
+assert(
+    vim.wait(2000, function()
+        return vim.fn.filereadable(vim.fs.joinpath(included_cache_root, "graphify-out", "graph.html")) == 1
+    end),
+    "cache-included Graphify build completes"
+)
+assert(
+    vim.fn.filereadable(vim.fs.joinpath(included_cache_root, ".gitignore")) == 0,
+    "git.include_cache leaves the Graphify cache eligible for tracking"
+)
+require("aiterm.config").opts.graphify.git.include_cache = false
 
 local skip_repository = vim.fs.joinpath(temporary, "skip-repository")
 vim.fn.mkdir(skip_repository, "p")

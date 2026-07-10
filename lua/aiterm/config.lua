@@ -66,6 +66,9 @@ M.defaults = {
         stale_detection = "git", -- git | timestamp | always
         allow_dirty_worktree = true,
         remember_skips = "session", -- never | session | repository
+        git = {
+            include_cache = false, -- allow graphify-out/cache/ to be tracked
+        },
         safety = {
             require_git_repository = true,
             max_files_for_automatic_build = 5000,

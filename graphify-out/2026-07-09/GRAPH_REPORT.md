@@ -1,11 +1,11 @@
 # Graph Report - aiterm.nvim  (2026-07-09)
 
 ## Corpus Check
-- 43 files · ~33,187 words
+- 43 files · ~33,891 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 403 nodes · 845 edges · 26 communities (23 shown, 3 thin omitted)
+- 405 nodes · 848 edges · 22 communities (20 shown, 2 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
@@ -30,11 +30,7 @@
 - Community 12
 - Community 13
 - Contributing
-- FAQ
-- Graphify Workflow
-- Install Dependencies
 - CLAUDE.md
-- Provider API
 - TODO.md
 
 ## God Nodes (most connected - your core abstractions)
@@ -46,8 +42,8 @@
 6. `M.root()` - 14 edges
 7. `spawn()` - 12 edges
 8. `M.quit_current_or_window()` - 12 edges
-9. `M.prepare_workspace()` - 11 edges
-10. `M.setup()` - 11 edges
+9. `M.setup()` - 12 edges
+10. `M.prepare_workspace()` - 11 edges
 
 ## Surprising Connections (you probably didn't know these)
 - None detected - all connections are within the same source files.
@@ -55,7 +51,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (26 total, 3 thin omitted)
+## Communities (22 total, 2 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.07
@@ -102,8 +98,8 @@ Cohesion: 0.38
 Nodes (8): assert_name(), assert_table(), bucket(), M.clear(), M.get(), M.list(), M.names(), M.register()
 
 ### Community 11 - "Community 11"
-Cohesion: 0.11
-Nodes (19): aiterm.nvim, API highlights, API Stability, Commands, Common Recipes, Configuration, Design Guarantees, Development (+11 more)
+Cohesion: 0.05
+Nodes (42): A note on permission-skipping flags, AI CLIs, aiterm.nvim, API highlights, API Stability, Can I disable modules?, Can I use another AI agent?, Can sessions persist outside Neovim? (+34 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.43
@@ -117,37 +113,25 @@ Nodes (3): binary(), enabled(), M.check()
 Cohesion: 0.18
 Nodes (9): AI Providers, Code Guidelines, Configured AI Kinds, Contributing, Development Setup, Other Provider Types, Provider API, Pull Requests (+1 more)
 
-### Community 20 - "FAQ"
-Cohesion: 0.29
-Nodes (7): Can I disable modules?, Can I use another AI agent?, Can sessions persist outside Neovim?, Does this require Claude or Codex?, FAQ, What does treehouse add?, Why are there no default global keymaps?
-
-### Community 21 - "Graphify Workflow"
-Cohesion: 0.33
-Nodes (6): A note on permission-skipping flags, Graphify Agent Guidance, Graphify Commands, Graphify Lifecycles, Graphify Workflow, Your Responsibilities
-
-### Community 22 - "Install Dependencies"
-Cohesion: 0.33
-Nodes (6): AI CLIs, Install Dependencies, Neovim, Persistent Process CLI, Treehouse CLI, Verify Tools
-
 ## Knowledge Gaps
-- **44 isolated node(s):** `plugins workspace`, `Development Setup`, `Validation`, `Code Guidelines`, `AI Providers` (+39 more)
+- **46 isolated node(s):** `plugins workspace`, `Development Setup`, `Validation`, `Code Guidelines`, `AI Providers` (+41 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `aiterm.nvim` connect `Community 11` to `Contributing`, `FAQ`, `Graphify Workflow`, `Install Dependencies`, `Provider API`?**
-  _High betweenness centrality (0.014) - this node is a cross-community bridge._
-- **Why does `FAQ` connect `FAQ` to `Community 11`?**
-  _High betweenness centrality (0.003) - this node is a cross-community bridge._
+- **Why does `aiterm.nvim` connect `Community 11` to `Contributing`?**
+  _High betweenness centrality (0.015) - this node is a cross-community bridge._
 - **What connects `plugins workspace`, `Development Setup`, `Validation` to the rest of the system?**
-  _44 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _46 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
   _Cohesion score 0.06971153846153846 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.08051948051948052 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.11683599419448476 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11756168359941944 - nodes in this community are weakly interconnected._
 - **Should `Community 6` be split into smaller, more focused modules?**
   _Cohesion score 0.13105413105413105 - nodes in this community are weakly interconnected._
+- **Should `Community 11` be split into smaller, more focused modules?**
+  _Cohesion score 0.047619047619047616 - nodes in this community are weakly interconnected._

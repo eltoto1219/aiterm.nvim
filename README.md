@@ -464,6 +464,9 @@ require("aiterm").setup({
     stale_detection = "git",   -- git | timestamp | always
     allow_dirty_worktree = true,
     remember_skips = "session", -- never | session | repository
+    git = {
+      include_cache = false,    -- allow graphify-out/cache/ to be tracked
+    },
     safety = {
       require_git_repository = true,
       max_files_for_automatic_build = 5000,
@@ -634,6 +637,7 @@ It intentionally keeps Markdown, JSON, YAML, TOML, SVG, and generic `data/` dire
 - Keep the Graphify executable on the `PATH` inherited by Neovim.
 - Review the generated `.graphifyignore` and add repository-specific exclusions.
 - Decide whether `graphify-out/` should be committed for your team or ignored locally.
+- Decide whether `graphify-out/cache/` can be pushed to your remote; `git.include_cache = false` excludes it by default.
 - Run `graphify codex install` and or `graphify claude install` inside a repository when you want those agents to prefer graph queries.
 - Review Graphify-generated agent instruction changes before committing them.
 - Treat graph results as navigation hints and read the relevant source before making edits.
@@ -656,7 +660,10 @@ Run `:AITermGraphifyResetPrompts` from the repository or any of its subdirectori
 
 Choosing `Run now` for a missing graph opens a second prompt asking whether generated `graphify-out/` files should remain tracked by Git.
 Choosing `Ignore graph output in Git` appends `graphify-out/` to `.gitignore` and `.graphifyignore` only when an equivalent rule is not already present.
-Choosing `Keep graph output in Git` does not modify either file.
+Choosing `Keep graph output in Git` does not add a whole-directory ignore rule; the cache policy below can still update `.gitignore`.
+Regardless of that prompt, `git.include_cache = false` adds `graphify-out/cache/` to `.gitignore` before builds and updates because the cache is reproducible generated data.
+Set `git.include_cache = true` when your team intentionally wants that cache to remain eligible for tracking; existing ignore rules are preserved and must be removed manually if necessary.
+This option only controls `.gitignore`; `aiterm.nvim` never stages, commits, pushes, or uploads Graphify output.
 
 ### Graphify Lifecycles
 
@@ -680,6 +687,7 @@ When repositories are nested, `root.nested_repositories = "nearest"` selects the
 | `stale_graph` | `never`, `ask`, `update` | Ignore a stale graph, ask before updating, or update automatically. |
 | `stale_detection` | `git`, `timestamp`, `always` | Compare the recorded Git snapshot, compare the latest commit time with the graph file, or consider the graph stale on every check. |
 | `remember_skips` | `never`, `session`, `repository` | Do not retain ordinary Skip choices, retain them for the Neovim session, or persist them in aiterm state. |
+| `git.include_cache` | boolean | Allow `graphify-out/cache/` to remain eligible for Git tracking. The default `false` adds a cache-specific `.gitignore` rule. |
 | `allow_dirty_worktree` | boolean | Permit or reject automatic builds and updates while tracked or untracked worktree changes are present. Manual commands remain available. |
 | `build.output`, `update.output`, `query.output` | `terminal`, `scratch`, `silent` | Show the job in an aiterm terminal, collect results in a scratch buffer, or run without opening an output buffer. |
 
