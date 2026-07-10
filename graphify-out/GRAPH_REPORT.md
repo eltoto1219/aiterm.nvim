@@ -1,16 +1,16 @@
 # Graph Report - aiterm.nvim  (2026-07-09)
 
 ## Corpus Check
-- 43 files · ~34,600 words
+- 41 files · ~34,521 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 408 nodes · 856 edges · 22 communities (20 shown, 2 thin omitted)
+- 410 nodes · 868 edges · 22 communities (21 shown, 1 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f7fb9a8b`
+- Built from commit: `b37a2de7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -30,13 +30,12 @@
 - Community 12
 - Community 13
 - Contributing
-- CLAUDE.md
 - TODO.md
 
 ## God Nodes (most connected - your core abstractions)
 1. `aiterm.nvim` - 23 edges
 2. `opts()` - 20 edges
-3. `start_job()` - 16 edges
+3. `start_job()` - 17 edges
 4. `notify()` - 15 edges
 5. `M.setup()` - 14 edges
 6. `M.root()` - 14 edges
@@ -51,18 +50,18 @@
 ## Import Cycles
 - None detected.
 
-## Communities (22 total, 2 thin omitted)
+## Communities (22 total, 1 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.07
-Nodes (52): ai_provider(), buffer_alive(), capture_codex_id_for_buffer(), capture_pending_codex_ids(), claim_codex_id(), claude_conversation_exists(), claude_conversation_path(), claude_projects_dir() (+44 more)
+Nodes (53): ai_provider(), buffer_alive(), canonical_cwd(), capture_codex_id_for_buffer(), capture_pending_codex_ids(), claim_codex_id(), claude_conversation_exists(), claude_conversation_path() (+45 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.08
 Nodes (45): assign_automatic_label(), buffer_name_in_use(), close_tree_permanently(), cursor_is_live_input(), cycle(), enter_insert(), hide_tree_for_terminal(), listed_terminal_buffers() (+37 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.11
+Cohesion: 0.12
 Nodes (53): append_ignore_rule(), automatic_build_allowed(), browser_argv(), check_guidance(), choose(), command_for(), ensure_cache_git_policy(), finish() (+45 more)
 
 ### Community 3 - "Community 3"
@@ -114,23 +113,23 @@ Cohesion: 0.18
 Nodes (9): AI Providers, Code Guidelines, Configured AI Kinds, Contributing, Development Setup, Other Provider Types, Provider API, Pull Requests (+1 more)
 
 ## Knowledge Gaps
-- **46 isolated node(s):** `plugins workspace`, `Development Setup`, `Validation`, `Code Guidelines`, `AI Providers` (+41 more)
+- **45 isolated node(s):** `Development Setup`, `Validation`, `Code Guidelines`, `AI Providers`, `Configured AI Kinds` (+40 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **2 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **1 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `aiterm.nvim` connect `Community 11` to `Contributing`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
-- **What connects `plugins workspace`, `Development Setup`, `Validation` to the rest of the system?**
-  _46 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _High betweenness centrality (0.014) - this node is a cross-community bridge._
+- **What connects `Development Setup`, `Validation`, `Code Guidelines` to the rest of the system?**
+  _45 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.06971153846153846 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07341269841269842 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.08051948051948052 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07622504537205081 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.11038961038961038 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11717171717171718 - nodes in this community are weakly interconnected._
 - **Should `Community 6` be split into smaller, more focused modules?**
   _Cohesion score 0.13105413105413105 - nodes in this community are weakly interconnected._
 - **Should `Community 11` be split into smaller, more focused modules?**

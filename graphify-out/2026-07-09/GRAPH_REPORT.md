@@ -1,16 +1,16 @@
 # Graph Report - aiterm.nvim  (2026-07-09)
 
 ## Corpus Check
-- 43 files · ~34,384 words
+- 43 files · ~34,600 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 407 nodes · 855 edges · 22 communities (20 shown, 2 thin omitted)
+- 408 nodes · 856 edges · 22 communities (20 shown, 2 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c4bf91df`
+- Built from commit: `f7fb9a8b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -130,7 +130,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.08051948051948052 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.11380471380471381 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11038961038961038 - nodes in this community are weakly interconnected._
 - **Should `Community 6` be split into smaller, more focused modules?**
   _Cohesion score 0.13105413105413105 - nodes in this community are weakly interconnected._
 - **Should `Community 11` be split into smaller, more focused modules?**

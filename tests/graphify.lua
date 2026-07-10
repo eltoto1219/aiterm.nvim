@@ -48,6 +48,7 @@ end
 
 vim.fn.mkdir(repository, "p")
 vim.fn.mkdir(state, "p")
+local repository_root = vim.uv.fs_realpath(repository) or repository
 vim.env.XDG_STATE_HOME = state
 vim.env.GRAPHIFY_TEST_LOG = log
 vim.g.mapleader = " "
@@ -89,7 +90,7 @@ require("aiterm").setup({
 })
 
 local graphify = require("aiterm.graphify")
-assert(graphify.root(vim.fs.joinpath(repository, "example.lua")) == repository, "Graphify resolves the Git root")
+assert(graphify.root(vim.fs.joinpath(repository, "example.lua")) == repository_root, "Graphify resolves the Git root")
 assert(graphify.status(repository).kind == "missing", "new repository graph is missing")
 
 assert(graphify.build(repository, { output = "scratch" }), "Graphify build starts")
@@ -133,7 +134,7 @@ opener_argv = nil
 vim.cmd.AITermGraphifyOpen()
 assert(opener_argv ~= nil, "Graphify open command uses the same HTML opener")
 assert(opener_argv[1] == "sensible-browser", "Graphify HTML uses a browser instead of the text/html MIME handler")
-local expected_html = vim.fs.joinpath(graphify.root(), "graphify-out", "graph.html")
+local expected_html = vim.fs.joinpath(repository_root, "graphify-out", "graph.html")
 assert(opener_argv[2] == expected_html, "Graphify browser receives the generated HTML path: " .. vim.inspect({
     opener_argv = opener_argv,
     cwd = vim.fn.getcwd(),
@@ -247,9 +248,9 @@ assert(
 )
 
 local calls = table.concat(vim.fn.readfile(log), "\n")
-assert(calls:find("extract " .. repository .. " --code-only", 1, true), "build uses local code-only extraction")
+assert(calls:find("extract " .. repository_root .. " --code-only", 1, true), "build uses local code-only extraction")
 assert(
-    calls:find("cluster-only " .. repository .. " --no-label", 1, true),
+    calls:find("cluster-only " .. repository_root .. " --no-label", 1, true),
     "build clusters without an LLM and writes graph HTML"
 )
 assert(
@@ -266,7 +267,7 @@ assert(
     vim.fn.filereadable(log .. ".install-missingtest") == 0,
     "build skips Graphify guidance installation for unavailable harnesses"
 )
-assert(calls:find("update " .. repository, 1, true), "update uses Graphify incremental update")
+assert(calls:find("update " .. repository_root, 1, true), "update uses Graphify incremental update")
 assert(calls:find("query what is this? --graph", 1, true), "query scopes Graphify to the repository graph")
 assert(calls:find("explain example --graph", 1, true), "explain scopes Graphify to the repository graph")
 assert(calls:find("path example M --graph", 1, true), "path scopes Graphify to the repository graph")

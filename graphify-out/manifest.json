@@ -5,8 +5,8 @@
     "semantic_hash": "3a61ba69c34b041352e98aaf71cefb5c"
   },
   "lua/aiterm/ai.lua": {
-    "mtime": 1783658767.122338,
-    "ast_hash": "0d51af96be8291858dc49df4748e5b7d",
+    "mtime": 1783662849.7712753,
+    "ast_hash": "8895c9184fc4f1cf53125dbc895b1618",
     "semantic_hash": ""
   },
   "lua/aiterm/buffers.lua": {
@@ -20,8 +20,8 @@
     "semantic_hash": ""
   },
   "lua/aiterm/graphify.lua": {
-    "mtime": 1783662257.1337898,
-    "ast_hash": "a65c1353857bc6e50c00920019758a7d",
+    "mtime": 1783663997.5041876,
+    "ast_hash": "e87b373c6bff0cbf8652acd4c423c80f",
     "semantic_hash": ""
   },
   "lua/aiterm/health.lua": {
@@ -105,9 +105,9 @@
     "semantic_hash": "5073870d8173834bd26aa0991d22f2f0"
   },
   "tests/codex_duplicate_repair.lua": {
-    "mtime": 1783638359.527686,
-    "ast_hash": "15d6878a363b17b76c61898c6c347842",
-    "semantic_hash": "15d6878a363b17b76c61898c6c347842"
+    "mtime": 1783662849.7722752,
+    "ast_hash": "a47967dcba9b58d5ed7d6d2e051ec725",
+    "semantic_hash": ""
   },
   "tests/codex_qa_multi_session.lua": {
     "mtime": 1783630502.6751828,
@@ -130,13 +130,13 @@
     "semantic_hash": "606013d70058f4f2daaab003ecd8f144"
   },
   "tests/graphify.lua": {
-    "mtime": 1783662263.297844,
-    "ast_hash": "47aaaf04b263fe3d8d61b6d0c5567b25",
+    "mtime": 1783664008.535403,
+    "ast_hash": "1c272f3de39e8ec69131c7e929ecd7a3",
     "semantic_hash": ""
   },
   "tests/graphify_startup.lua": {
-    "mtime": 1783658767.125338,
-    "ast_hash": "a84952650471baf928c6bca02f1a676d",
+    "mtime": 1783663054.5702465,
+    "ast_hash": "f6bd77f760531ecb60668c45e319a014",
     "semantic_hash": ""
   },
   "tests/picker.lua": {

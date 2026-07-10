@@ -15,13 +15,13 @@
     "semantic_hash": "8e55c67be5578a3147febef6b3e9749f"
   },
   "lua/aiterm/config.lua": {
-    "mtime": 1783661546.9464574,
-    "ast_hash": "d023e6392a7b593bc692fc99b15df97d",
+    "mtime": 1783662190.476208,
+    "ast_hash": "6294a51f59ccbb07f30cf4ee666168e5",
     "semantic_hash": ""
   },
   "lua/aiterm/graphify.lua": {
-    "mtime": 1783661546.9504576,
-    "ast_hash": "9181733a4acf8c5c19434dee08afe3cc",
+    "mtime": 1783662257.1337898,
+    "ast_hash": "a65c1353857bc6e50c00920019758a7d",
     "semantic_hash": ""
   },
   "lua/aiterm/health.lua": {
@@ -130,8 +130,8 @@
     "semantic_hash": "606013d70058f4f2daaab003ecd8f144"
   },
   "tests/graphify.lua": {
-    "mtime": 1783661579.6266406,
-    "ast_hash": "5554fd0f23445925d6a973c948e9b689",
+    "mtime": 1783662263.297844,
+    "ast_hash": "47aaaf04b263fe3d8d61b6d0c5567b25",
     "semantic_hash": ""
   },
   "tests/graphify_startup.lua": {
@@ -220,8 +220,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1783661560.0145297,
-    "ast_hash": "feff419211623335941664d96015b8c4",
+    "mtime": 1783662316.4093153,
+    "ast_hash": "9f8d690e1dccc15656195bf7d440ffa0",
     "semantic_hash": ""
   },
   "TODO.md": {

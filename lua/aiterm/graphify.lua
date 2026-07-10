@@ -106,7 +106,11 @@ local function save_state()
 end
 
 local function normalize(path)
-    return path and vim.fs.normalize(path) or nil
+    if type(path) ~= "string" or path == "" then
+        return nil
+    end
+    local normalized = vim.fs.normalize(path)
+    return vim.uv.fs_realpath(normalized) or normalized
 end
 
 local function is_directory(path)
@@ -278,7 +282,7 @@ local function state_for(root)
 end
 
 function M.status(root)
-    root = root or M.root()
+    root = root and normalize(root) or M.root()
     if not root then
         return { kind = "unsupported", message = "no repository root found" }
     end
@@ -554,7 +558,7 @@ start_cluster_job = function(root, previous)
 end
 
 local function start_job(action, root, argument, options)
-    root = root or M.root()
+    root = root and normalize(root) or M.root()
     options = options or {}
     if not root then
         notify("no repository root found", vim.log.levels.WARN)
@@ -719,7 +723,7 @@ local function browser_argv(path)
 end
 
 function M.open_html(root)
-    root = root or M.root()
+    root = root and normalize(root) or M.root()
     if not root then
         notify("no repository root found", vim.log.levels.WARN)
         return
@@ -812,7 +816,7 @@ install_harnesses = function(root)
 end
 
 function M.guidance_status(root)
-    root = root or M.root()
+    root = root and normalize(root) or M.root()
     local result = {}
     if not root then
         return result
@@ -974,7 +978,7 @@ function M.show_status()
 end
 
 function M.reset_skips(root)
-    root = root or M.root()
+    root = root and normalize(root) or M.root()
     if not root then
         notify("no repository root found", vim.log.levels.WARN)
         return false
