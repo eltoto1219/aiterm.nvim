@@ -22,6 +22,14 @@ local last_ai_bufnr = nil
 
 M.codex_sessions_dir = vim.fs.joinpath(vim.env.HOME or "~", ".codex", "sessions")
 
+local function canonical_cwd(path)
+    if type(path) ~= "string" or path == "" then
+        return nil
+    end
+    local normalized = vim.fs.normalize(path)
+    return vim.uv.fs_realpath(normalized) or normalized
+end
+
 -- Shell aliases don't apply to termopen commands, so always-on flags come
 -- from opts.ai.kinds[kind].args instead.
 local function kind_args(kind)
@@ -214,7 +222,7 @@ local function codex_rollout_metadata(path)
 end
 
 local function codex_rollouts_for_cwd(cwd)
-    local normalized_cwd = type(cwd) == "string" and vim.fs.normalize(cwd) or nil
+    local normalized_cwd = canonical_cwd(cwd)
     local rollouts = {}
 
     if not normalized_cwd then
@@ -223,7 +231,7 @@ local function codex_rollouts_for_cwd(cwd)
 
     for _, path in ipairs(vim.fn.globpath(M.codex_sessions_dir, "**/rollout-*.jsonl", false, true)) do
         local id, rollout_cwd = codex_rollout_metadata(path)
-        if id and rollout_cwd and vim.fs.normalize(rollout_cwd) == normalized_cwd then
+        if id and rollout_cwd and canonical_cwd(rollout_cwd) == normalized_cwd then
             rollouts[#rollouts + 1] = {
                 id = id,
                 mtime = vim.fn.getftime(path),
@@ -691,11 +699,11 @@ local function entry_matches_cwd(entry, scope_cwd)
     if type(entry.cwd) ~= "string" or entry.cwd == "" then
         return false
     end
-    return vim.fs.normalize(entry.cwd) == scope_cwd
+    return canonical_cwd(entry.cwd) == scope_cwd
 end
 
 local function live_ai_buffers(scope_cwd)
-    local scope = scope_cwd and vim.fs.normalize(scope_cwd) or nil
+    local scope = canonical_cwd(scope_cwd)
     local list = {}
     for bufnr in pairs(buffers) do
         local key = buffers[bufnr]
@@ -769,7 +777,7 @@ function M.new_session()
 end
 
 local function restorable_entries(scope_cwd)
-    local scope = scope_cwd and vim.fs.normalize(scope_cwd) or nil
+    local scope = canonical_cwd(scope_cwd)
     local list = {}
     for key, entry in pairs(entries) do
         if not entry_is_alive(key) and entry_is_restorable(entry) and entry_matches_cwd(entry, scope) then

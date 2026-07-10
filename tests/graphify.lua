@@ -4,46 +4,56 @@ vim.opt.rtp:prepend(root)
 local temporary = vim.fn.tempname()
 local repository = vim.fs.joinpath(temporary, "repository")
 local state = vim.fs.joinpath(temporary, "state")
-local executable = vim.fs.joinpath(temporary, "graphify")
 local log = vim.fs.joinpath(temporary, "graphify.log")
+local executable = vim.fn.exepath("python3")
+if executable == "" then
+    executable = vim.fn.exepath("python")
+end
+assert(executable ~= "", "Python is available for the cross-platform Graphify fixture")
+
+local function run(argv, message)
+    local result = vim.system(argv, { text = true }):wait()
+    local detail = vim.trim((result.stdout or "") .. (result.stderr or ""))
+    assert(result.code == 0, message .. (detail ~= "" and ": " .. detail or ""))
+end
+
+local fake_graphify = {
+    "import os, pathlib, sys",
+    "action = pathlib.Path(sys.argv[0]).name",
+    'with open(os.environ["GRAPHIFY_TEST_LOG"], "a", encoding="utf-8") as handle:',
+    '    handle.write(" ".join([action, *sys.argv[1:]]) + "\\n")',
+    'if action in ("extract", "update"):',
+    '    output = pathlib.Path(sys.argv[1]) / "graphify-out"',
+    "    output.mkdir(parents=True, exist_ok=True)",
+    '    (output / "graph.json").write_text(\'{"nodes": [], "links": []}\\n\', encoding="utf-8")',
+    'elif action == "cluster-only":',
+    '    output = pathlib.Path(sys.argv[1]) / "graphify-out"',
+    "    output.mkdir(parents=True, exist_ok=True)",
+    '    (output / "graph.html").write_text("<html></html>\\n", encoding="utf-8")',
+    'elif action in ("query", "explain", "path"):',
+    '    print(f"{action} result")',
+}
+local fake_actions = { "extract", "update", "cluster-only", "query", "explain", "path", "install" }
+local function install_fake_graphify(path)
+    vim.fn.mkdir(path, "p")
+    for _, action in ipairs(fake_actions) do
+        vim.fn.writefile(fake_graphify, vim.fs.joinpath(path, action))
+    end
+end
+
 vim.fn.mkdir(repository, "p")
 vim.fn.mkdir(state, "p")
 vim.env.XDG_STATE_HOME = state
 vim.env.GRAPHIFY_TEST_LOG = log
 vim.g.mapleader = " "
 
-vim.fn.writefile({
-    "#!/bin/sh",
-    "set -eu",
-    'printf \'%s\\n\' "$*" >> "$GRAPHIFY_TEST_LOG"',
-    'case "$1" in',
-    "  extract)",
-    '    mkdir -p "$2/graphify-out"',
-    '    printf \'{\\"nodes\\": [], \\"links\\": []}\\n\' > "$2/graphify-out/graph.json"',
-    "    ;;",
-    "  update)",
-    '    mkdir -p "$2/graphify-out"',
-    '    printf \'{\\"nodes\\": [], \\"links\\": []}\\n\' > "$2/graphify-out/graph.json"',
-    "    ;;",
-    "  cluster-only)",
-    "    printf '<html></html>\\n' > \"$2/graphify-out/graph.html\"",
-    "    ;;",
-    "  query|explain|path)",
-    "    printf '%s result\\n' \"$1\"",
-    "    ;;",
-    "esac",
-}, executable)
-assert(vim.fn.system({ "chmod", "+x", executable }) == "", "fake graphify is executable")
-
 vim.fn.writefile({ "local M = {}", "return M" }, vim.fs.joinpath(repository, "example.lua"))
-assert(vim.fn.system({ "git", "init", "-q", repository }) == "", "test repository initialized")
-assert(
-    vim.fn.system({ "git", "-C", repository, "config", "user.email", "test@example.com" }) == "",
-    "test email configured"
-)
-assert(vim.fn.system({ "git", "-C", repository, "config", "user.name", "Test User" }) == "", "test name configured")
-assert(vim.fn.system({ "git", "-C", repository, "add", "." }) == "", "test file staged")
-assert(vim.fn.system({ "git", "-C", repository, "commit", "-qm", "initial" }) == "", "test repository committed")
+install_fake_graphify(repository)
+run({ "git", "init", "-q", repository }, "test repository initialized")
+run({ "git", "-C", repository, "config", "user.email", "test@example.com" }, "test email configured")
+run({ "git", "-C", repository, "config", "user.name", "Test User" }, "test name configured")
+run({ "git", "-C", repository, "add", "." }, "test file staged")
+run({ "git", "-C", repository, "commit", "-qm", "initial" }, "test repository committed")
 
 require("aiterm").register_provider("ai", "test", {
     command = function()
@@ -201,8 +211,8 @@ for _, name in ipairs({
 end
 
 vim.fn.writefile({ "local M = { changed = true }", "return M" }, vim.fs.joinpath(repository, "example.lua"))
-assert(vim.fn.system({ "git", "-C", repository, "add", "." }) == "", "changed file staged")
-assert(vim.fn.system({ "git", "-C", repository, "commit", "-qm", "changed" }) == "", "changed file committed")
+run({ "git", "-C", repository, "add", "." }, "changed file staged")
+run({ "git", "-C", repository, "commit", "-qm", "changed" }, "changed file committed")
 assert(graphify.status(repository).kind == "stale", "Git commit marks graph stale")
 assert(graphify.update(repository, { output = "scratch" }), "Graphify update starts")
 assert(
@@ -265,20 +275,12 @@ assert(
 local policy_repository = vim.fs.joinpath(temporary, "policy-repository")
 vim.fn.mkdir(policy_repository, "p")
 vim.fn.writefile({ "return {}" }, vim.fs.joinpath(policy_repository, "example.lua"))
-assert(vim.fn.system({ "git", "init", "-q", policy_repository }) == "", "policy test repository initialized")
-assert(
-    vim.fn.system({ "git", "-C", policy_repository, "config", "user.email", "test@example.com" }) == "",
-    "policy email configured"
-)
-assert(
-    vim.fn.system({ "git", "-C", policy_repository, "config", "user.name", "Test User" }) == "",
-    "policy name configured"
-)
-assert(vim.fn.system({ "git", "-C", policy_repository, "add", "." }) == "", "policy file staged")
-assert(
-    vim.fn.system({ "git", "-C", policy_repository, "commit", "-qm", "initial" }) == "",
-    "policy repository committed"
-)
+install_fake_graphify(policy_repository)
+run({ "git", "init", "-q", policy_repository }, "policy test repository initialized")
+run({ "git", "-C", policy_repository, "config", "user.email", "test@example.com" }, "policy email configured")
+run({ "git", "-C", policy_repository, "config", "user.name", "Test User" }, "policy name configured")
+run({ "git", "-C", policy_repository, "add", "." }, "policy file staged")
+run({ "git", "-C", policy_repository, "commit", "-qm", "initial" }, "policy repository committed")
 
 local policy_prompts = {}
 require("aiterm").setup({
@@ -332,6 +334,7 @@ assert(
 local included_cache_root = vim.fs.joinpath(temporary, "included-cache")
 vim.fn.mkdir(included_cache_root, "p")
 vim.fn.writefile({ "return {}" }, vim.fs.joinpath(included_cache_root, "example.lua"))
+install_fake_graphify(included_cache_root)
 require("aiterm.config").opts.graphify.git.include_cache = true
 assert(graphify.build(included_cache_root, { output = "scratch" }), "cache-included Graphify build starts")
 assert(
@@ -349,17 +352,12 @@ require("aiterm.config").opts.graphify.git.include_cache = false
 local skip_repository = vim.fs.joinpath(temporary, "skip-repository")
 vim.fn.mkdir(skip_repository, "p")
 vim.fn.writefile({ "return {}" }, vim.fs.joinpath(skip_repository, "example.lua"))
-assert(vim.fn.system({ "git", "init", "-q", skip_repository }) == "", "skip test repository initialized")
-assert(
-    vim.fn.system({ "git", "-C", skip_repository, "config", "user.email", "test@example.com" }) == "",
-    "skip email configured"
-)
-assert(
-    vim.fn.system({ "git", "-C", skip_repository, "config", "user.name", "Test User" }) == "",
-    "skip name configured"
-)
-assert(vim.fn.system({ "git", "-C", skip_repository, "add", "." }) == "", "skip file staged")
-assert(vim.fn.system({ "git", "-C", skip_repository, "commit", "-qm", "initial" }) == "", "skip repository committed")
+install_fake_graphify(skip_repository)
+run({ "git", "init", "-q", skip_repository }, "skip test repository initialized")
+run({ "git", "-C", skip_repository, "config", "user.email", "test@example.com" }, "skip email configured")
+run({ "git", "-C", skip_repository, "config", "user.name", "Test User" }, "skip name configured")
+run({ "git", "-C", skip_repository, "add", "." }, "skip file staged")
+run({ "git", "-C", skip_repository, "commit", "-qm", "initial" }, "skip repository committed")
 
 local prompts = 0
 require("aiterm").setup({

@@ -11,15 +11,18 @@ vim.fn.mkdir(repository, "p")
 vim.fn.mkdir(state, "p")
 vim.env.XDG_STATE_HOME = state
 
+local function run(argv, message)
+    local result = vim.system(argv, { text = true }):wait()
+    local detail = vim.trim((result.stdout or "") .. (result.stderr or ""))
+    assert(result.code == 0, message .. (detail ~= "" and ": " .. detail or ""))
+end
+
 vim.fn.writefile({ "return {}" }, vim.fs.joinpath(repository, "example.lua"))
-assert(vim.fn.system({ "git", "init", "-q", repository }) == "", "test repository initialized")
-assert(
-    vim.fn.system({ "git", "-C", repository, "config", "user.email", "test@example.com" }) == "",
-    "test email configured"
-)
-assert(vim.fn.system({ "git", "-C", repository, "config", "user.name", "Test User" }) == "", "test name configured")
-assert(vim.fn.system({ "git", "-C", repository, "add", "." }) == "", "test file staged")
-assert(vim.fn.system({ "git", "-C", repository, "commit", "-qm", "initial" }) == "", "test repository committed")
+run({ "git", "init", "-q", repository }, "test repository initialized")
+run({ "git", "-C", repository, "config", "user.email", "test@example.com" }, "test email configured")
+run({ "git", "-C", repository, "config", "user.name", "Test User" }, "test name configured")
+run({ "git", "-C", repository, "add", "." }, "test file staged")
+run({ "git", "-C", repository, "commit", "-qm", "initial" }, "test repository committed")
 vim.cmd.cd(repository)
 
 local confirmations = {}
@@ -31,16 +34,16 @@ require("aiterm").setup({
         restore = false,
         kinds = {
             test = {
-                executable = "sh",
+                executable = vim.v.progpath,
                 command = function()
-                    return { "sh", "-c", "sleep 2" }
+                    return { vim.v.progpath, "--headless", "--clean", "+sleep 2", "+qa" }
                 end,
             },
         },
     },
     graphify = {
         enabled = true,
-        executable = "true",
+        executable = vim.v.progpath,
         missing_graph = "ask",
         stale_graph = "never",
         callbacks = {

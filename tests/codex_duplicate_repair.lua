@@ -6,6 +6,7 @@ local bin = vim.fs.joinpath(temp, "bin")
 local cwd = vim.fs.joinpath(temp, "work")
 local sessions = vim.fs.joinpath(temp, "sessions")
 local resumes = vim.fs.joinpath(temp, "resumes")
+local stored_cwd = cwd
 local session_ids = {
     "11111111-1111-4111-8111-111111111111",
     "22222222-2222-4222-8222-222222222222",
@@ -14,13 +15,18 @@ local session_ids = {
 
 vim.fn.mkdir(bin, "p")
 vim.fn.mkdir(cwd, "p")
+if vim.fn.has("win32") ~= 1 then
+    local alias = temp .. "-alias"
+    assert(vim.uv.fs_symlink(temp, alias), "temporary cwd alias created")
+    stored_cwd = vim.fs.joinpath(alias, "work")
+end
 vim.fn.mkdir(vim.fs.joinpath(sessions, "2026", "07", "09"), "p")
 vim.env.XDG_STATE_HOME = vim.fs.joinpath(temp, "state")
 vim.opt.rtp:prepend(root)
 
 for index, id in ipairs(session_ids) do
     vim.fn.writefile({
-        vim.json.encode({ type = "session_meta", payload = { id = id, cwd = cwd } }),
+        vim.json.encode({ type = "session_meta", payload = { id = id, cwd = stored_cwd } }),
         vim.json.encode({ type = "event_msg", payload = { type = "user_message", message = "same title" } }),
     }, vim.fs.joinpath(sessions, "2026", "07", "09", "rollout-" .. index .. "-" .. id .. ".jsonl"))
 end
@@ -33,7 +39,7 @@ for index = 1, #session_ids do
         key = "44444444-4444-4444-8444-" .. string.format("%012d", index),
         kind = "codex",
         id = session_ids[#session_ids],
-        cwd = cwd,
+        cwd = stored_cwd,
         title = "same title",
         last_used = os.time(),
     }
