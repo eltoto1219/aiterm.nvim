@@ -45,6 +45,18 @@ assert(vim.fn.system({ "git", "-C", repository, "config", "user.name", "Test Use
 assert(vim.fn.system({ "git", "-C", repository, "add", "." }) == "", "test file staged")
 assert(vim.fn.system({ "git", "-C", repository, "commit", "-qm", "initial" }) == "", "test repository committed")
 
+require("aiterm").register_provider("ai", "test", {
+    command = function()
+        return { "true" }
+    end,
+    executable = executable,
+})
+require("aiterm").register_provider("ai", "missingtest", {
+    command = function()
+        return { "true" }
+    end,
+    executable = vim.fs.joinpath(temporary, "missing-harness"),
+})
 require("aiterm").setup({
     graphify = {
         enabled = true,
@@ -52,6 +64,7 @@ require("aiterm").setup({
         missing_graph = "build",
         stale_graph = "update",
         build = { output = "scratch", timeout_ms = 2000 },
+        agents = { providers = { "test", "missingtest" } },
     },
     mappings = {
         graphify = {
@@ -226,6 +239,14 @@ assert(calls:find("extract " .. repository .. " --code-only", 1, true), "build u
 assert(
     calls:find("cluster-only " .. repository .. " --no-label", 1, true),
     "build clusters without an LLM and writes graph HTML"
+)
+assert(
+    calls:find("install --project --platform test", 1, true),
+    "build installs project-scoped Graphify guidance for available harnesses"
+)
+assert(
+    not calls:find("install --project --platform missingtest", 1, true),
+    "build skips Graphify guidance installation for unavailable harnesses"
 )
 assert(calls:find("update " .. repository, 1, true), "update uses Graphify incremental update")
 assert(calls:find("query what is this? --graph", 1, true), "query scopes Graphify to the repository graph")

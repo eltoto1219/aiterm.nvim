@@ -7,6 +7,7 @@ local session_skips = {}
 local prompted_repositories = {}
 local pending_choices = {}
 local warned_guidance = {}
+local harness_installs = {}
 local stored_state = nil
 
 local output_files = {
@@ -442,6 +443,7 @@ local function open_scratch(label, lines)
 end
 
 local start_cluster_job
+local install_harnesses
 
 local function finish(root, action, code, stdout, stderr)
     local job = jobs[root]
@@ -581,6 +583,7 @@ local function start_job(action, root, argument, options)
 
     if action == "build" then
         M.ensure_ignore(root)
+        install_harnesses(root)
     end
 
     local argv = options.argv or command_for(action, root, argument, options.force)
@@ -764,6 +767,50 @@ local function guidance_present(root, provider)
     return false
 end
 
+local function harness_available(provider)
+    local spec = require("aiterm.providers").get("ai", provider)
+    if not spec then
+        return false
+    end
+    return not spec.executable or vim.fn.executable(spec.executable) == 1
+end
+
+install_harnesses = function(root)
+    local agents = opts().agents
+    if not agents.install_on_build then
+        return
+    end
+
+    harness_installs[root] = harness_installs[root] or {}
+    for _, provider in ipairs(agents.providers) do
+        if
+            harness_available(provider)
+            and not guidance_present(root, provider)
+            and not harness_installs[root][provider]
+        then
+            harness_installs[root][provider] = true
+            local argv = { opts().executable, "install", "--project", "--platform", provider }
+            vim.system(argv, { cwd = root, text = true }, function(result)
+                vim.schedule(function()
+                    if result.code == 0 then
+                        notify("installed Graphify guidance for " .. provider .. " in " .. root)
+                        return
+                    end
+                    harness_installs[root][provider] = nil
+                    local detail = vim.trim(result.stderr or "")
+                    if detail == "" then
+                        detail = "exit code " .. tostring(result.code)
+                    end
+                    notify(
+                        "could not install Graphify guidance for " .. provider .. ": " .. detail,
+                        vim.log.levels.WARN
+                    )
+                end)
+            end)
+        end
+    end
+end
+
 function M.guidance_status(root)
     root = root or M.root()
     local result = {}
@@ -786,9 +833,9 @@ local function check_guidance(root, active_provider)
         if (provider == "codex" or provider == "claude") and not guidance_present(root, provider) then
             warned_guidance[root] = true
             notify(
-                "agent guidance is not installed; run `graphify "
+                "agent guidance is not installed; rebuild the graph or run `graphify install --project --platform "
                     .. provider
-                    .. " install` in this repository to prefer graph queries",
+                    .. "` in this repository",
                 vim.log.levels.WARN
             )
             return

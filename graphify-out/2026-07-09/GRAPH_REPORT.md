@@ -1,16 +1,16 @@
 # Graph Report - aiterm.nvim  (2026-07-09)
 
 ## Corpus Check
-- 43 files · ~33,891 words
+- 43 files · ~34,384 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 405 nodes · 848 edges · 22 communities (20 shown, 2 thin omitted)
+- 407 nodes · 855 edges · 22 communities (20 shown, 2 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0901c260`
+- Built from commit: `c4bf91df`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -35,10 +35,10 @@
 
 ## God Nodes (most connected - your core abstractions)
 1. `aiterm.nvim` - 23 edges
-2. `opts()` - 19 edges
-3. `start_job()` - 15 edges
-4. `M.setup()` - 14 edges
-5. `notify()` - 14 edges
+2. `opts()` - 20 edges
+3. `start_job()` - 16 edges
+4. `notify()` - 15 edges
+5. `M.setup()` - 14 edges
 6. `M.root()` - 14 edges
 7. `spawn()` - 12 edges
 8. `M.quit_current_or_window()` - 12 edges
@@ -62,8 +62,8 @@ Cohesion: 0.08
 Nodes (45): assign_automatic_label(), buffer_name_in_use(), close_tree_permanently(), cursor_is_live_input(), cycle(), enter_insert(), hide_tree_for_terminal(), listed_terminal_buffers() (+37 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.12
-Nodes (51): append_graph_output_ignore(), automatic_build_allowed(), browser_argv(), check_guidance(), choose(), command_for(), finish(), git_output() (+43 more)
+Cohesion: 0.11
+Nodes (53): append_ignore_rule(), automatic_build_allowed(), browser_argv(), check_guidance(), choose(), command_for(), ensure_cache_git_policy(), finish() (+45 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.16
@@ -130,7 +130,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.08051948051948052 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.11756168359941944 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11380471380471381 - nodes in this community are weakly interconnected._
 - **Should `Community 6` be split into smaller, more focused modules?**
   _Cohesion score 0.13105413105413105 - nodes in this community are weakly interconnected._
 - **Should `Community 11` be split into smaller, more focused modules?**

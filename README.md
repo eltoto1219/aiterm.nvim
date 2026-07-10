@@ -239,7 +239,6 @@ Enable Graphify when you want AI sessions to work from a repository knowledge gr
 
 ```sh
 uv tool install graphifyy
-graphify install
 ```
 
 ```lua
@@ -496,8 +495,9 @@ require("aiterm").setup({
       create_if_missing = true,
       profile = "safe",        -- minimal | safe
     },
-    agents = {
-      check_on_start = true,
+        agents = {
+          install_on_build = true,
+          check_on_start = true,
       warn_when_missing = true,
       providers = { "codex", "claude" },
     },
@@ -633,22 +633,16 @@ It intentionally keeps Markdown, JSON, YAML, TOML, SVG, and generic `data/` dire
 ### Your Responsibilities
 
 - Install Graphify yourself with `uv tool install graphifyy`.
-- Run `graphify install` to register Graphify with the AI assistants detected by its installer.
 - Keep the Graphify executable on the `PATH` inherited by Neovim.
 - Review the generated `.graphifyignore` and add repository-specific exclusions.
-- Decide whether `graphify-out/` should be committed for your team or ignored locally.
-- Decide whether `graphify-out/cache/` can be pushed to your remote; `git.include_cache = false` excludes it by default.
-- Run `graphify codex install` and or `graphify claude install` inside a repository when you want those agents to prefer graph queries.
 - Review Graphify-generated agent instruction changes before committing them.
 - Treat graph results as navigation hints and read the relevant source before making edits.
 - When upgrading beyond the documented tested version, rerun the verification sequence below because Graphify can change independently of this plugin.
 
-Graphify also supports project-scoped and platform-specific assistant installation.
-For example, use `graphify install --project --platform codex` when you want the Graphify skill stored inside the current repository instead of your user profile.
-Review the files produced by any assistant installer before committing them.
-
-`aiterm.nvim` never installs Graphify, installs Git hooks, rewrites `AGENTS.md`, or starts an HTTP server.
-It changes `.gitignore` or an existing `.graphifyignore` only after you explicitly choose to ignore generated graph output.
+`aiterm.nvim` never installs the Graphify package or starts an HTTP server.
+After an accepted build, it invokes Graphify's project-scoped harness installer, and Graphify owns the resulting skill, agent-hook, and repository-guidance changes.
+It adds a whole-output rule to `.gitignore` or an existing `.graphifyignore` only after the plugin's output-policy prompt selects that behavior.
+The default cache policy can independently add the narrower `graphify-out/cache/` rule to `.gitignore`.
 MCP setup is intentionally outside this first integration release.
 Graphify Git hooks are also user-owned and are never installed by this plugin.
 If you choose to use `graphify hook install`, consult the upstream instructions and refresh the hook after reinstalling or upgrading Graphify.
@@ -661,6 +655,7 @@ Run `:AITermGraphifyResetPrompts` from the repository or any of its subdirectori
 Choosing `Run now` for a missing graph opens a second prompt asking whether generated `graphify-out/` files should remain tracked by Git.
 Choosing `Ignore graph output in Git` appends `graphify-out/` to `.gitignore` and `.graphifyignore` only when an equivalent rule is not already present.
 Choosing `Keep graph output in Git` does not add a whole-directory ignore rule; the cache policy below can still update `.gitignore`.
+The plugin owns this output policy decision flow and applies the selected repository policy before starting the build.
 Regardless of that prompt, `git.include_cache = false` adds `graphify-out/cache/` to `.gitignore` before builds and updates because the cache is reproducible generated data.
 Set `git.include_cache = true` when your team intentionally wants that cache to remain eligible for tracking; existing ignore rules are preserved and must be removed manually if necessary.
 This option only controls `.gitignore`; `aiterm.nvim` never stages, commits, pushes, or uploads Graphify output.
@@ -690,6 +685,7 @@ When repositories are nested, `root.nested_repositories = "nearest"` selects the
 | `git.include_cache` | boolean | Allow `graphify-out/cache/` to remain eligible for Git tracking. The default `false` adds a cache-specific `.gitignore` rule. |
 | `allow_dirty_worktree` | boolean | Permit or reject automatic builds and updates while tracked or untracked worktree changes are present. Manual commands remain available. |
 | `build.output`, `update.output`, `query.output` | `terminal`, `scratch`, `silent` | Show the job in an aiterm terminal, collect results in a scratch buffer, or run without opening an output buffer. |
+| `agents.install_on_build` | boolean | Install project-scoped Graphify guidance for each configured and available harness when a graph build starts. |
 
 Automatic builds also respect `safety.max_files_for_automatic_build` and `safety.max_bytes_for_automatic_build`.
 Manual `:AITermGraphifyBuild` and `:AITermGraphifyUpdate` commands are not blocked by those automatic-build limits.
@@ -743,17 +739,11 @@ The build should create `graphify-out/graph.json` and `graphify-out/graph.html`,
 
 ### Graphify Agent Guidance
 
-The Graphify CLI owns agent-specific guidance.
-Run one or both commands explicitly in each repository:
-
-```sh
-graphify codex install
-graphify claude install
-```
-
-`aiterm.nvim` checks whether Graphify guidance appears in `AGENTS.md` or `CLAUDE.md` and warns once per repository when it is missing.
-It does not install the guidance because those files are repository-owned instructions.
-A global or skill-directory Graphify installation can still work even though the current repository-guidance check does not detect it yet.
+When an accepted build starts, `aiterm.nvim` runs `graphify install --project --platform <harness>` asynchronously for every configured harness whose executable is available.
+With the default `agents.providers = { "codex", "claude" }`, this installs project-scoped Graphify skills and guidance for each installed harness without requiring a separate user setup step.
+The installer can create harness-specific skill directories, hook configuration, and repository guidance such as `AGENTS.md` or `CLAUDE.md`.
+The graph build continues if a harness installer fails, and the plugin reports the failure as a warning.
+Set `agents.install_on_build = false` only when guidance installation is managed outside the plugin.
 
 Graphify controls its own query logging behavior independently of `aiterm.nvim`.
 Current Graphify releases can write query metadata under the Graphify cache directory; consult the [upstream Graphify documentation](https://github.com/safishamsi/graphify) for `GRAPHIFY_QUERY_LOG` and `GRAPHIFY_QUERY_LOG_DISABLE` when repository or prompt privacy requires different handling.

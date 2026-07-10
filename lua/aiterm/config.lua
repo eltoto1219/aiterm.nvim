@@ -99,6 +99,7 @@ M.defaults = {
             profile = "safe", -- minimal | safe
         },
         agents = {
+            install_on_build = true,
             check_on_start = true,
             warn_when_missing = true,
             providers = { "codex", "claude" },
