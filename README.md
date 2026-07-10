@@ -239,6 +239,7 @@ Enable Graphify when you want AI sessions to work from a repository knowledge gr
 
 ```sh
 uv tool install graphifyy
+graphify install
 ```
 
 ```lua
@@ -248,8 +249,10 @@ require("aiterm").setup({
 ```
 
 Graphify is optional and is not installed by `aiterm.nvim`.
+This integration is currently tested with Graphify 0.9.11.
+Review the [upstream installation instructions](https://github.com/safishamsi/graphify#install) when upgrading because Graphify's CLI and assistant-installation workflow can change independently of this plugin.
 The first graph build creates a safe baseline `.graphifyignore` only when the repository does not already have one.
-Existing `.graphifyignore` files are never changed by `aiterm.nvim`.
+Existing `.graphifyignore` files are preserved during baseline initialization.
 
 ## Mental Model
 
@@ -450,6 +453,7 @@ require("aiterm").setup({
     },
     lifecycle = "on_ai_start", -- manual | on_ai_start | on_workspace_enter
     check = {
+      on_vim_enter = true,
       on_dir_changed = true,
       on_ai_start = true,
       on_treehouse_workspace = true,
@@ -496,8 +500,8 @@ require("aiterm").setup({
     },
     ui = {
       notifications = true,
-      open_html = "system",    -- system | disabled
-      confirm = nil,            -- nil uses vim.ui.select
+      open_html = "browser",   -- browser | system | disabled | { "custom-opener", "--flag" }
+      confirm = nil,            -- nil uses aiterm's built-in picker
     },
     callbacks = {
       on_status = nil,          -- fun(status, root)
@@ -579,13 +583,14 @@ Graphify support is an opt-in codebase-graph workflow for AI sessions and Treeho
 `aiterm.nvim` resolves the repository root, checks for `graphify-out/graph.json`, and starts Graphify jobs asynchronously.
 It does not block the AI session while a graph builds or updates.
 
-With the default `lifecycle = "on_ai_start"`, a new AI session follows this flow:
+With the default `check.on_vim_enter = true`, Neovim checks the graph at startup and AI sessions check it again when needed.
+Set `lifecycle = "manual"` to disable automatic startup and AI-session checks.
 
 ```text
-Start :Codex, :Claude, or a Treehouse workspace agent
+Open Neovim in a repository or start :Codex, :Claude, or a Treehouse workspace agent
   -> resolve the Git repository root
   -> inspect graph presence and Git freshness
-  -> prompt to build a missing graph or update a stale graph
+  -> choose Run now, Skip, or Skip and don't ask again
   -> start or continue the AI session immediately
   -> show Graphify completion or failure in a terminal, scratch buffer, or notification
 ```
@@ -625,28 +630,108 @@ It intentionally keeps Markdown, JSON, YAML, TOML, SVG, and generic `data/` dire
 ### Your Responsibilities
 
 - Install Graphify yourself with `uv tool install graphifyy`.
+- Run `graphify install` to register Graphify with the AI assistants detected by its installer.
 - Keep the Graphify executable on the `PATH` inherited by Neovim.
 - Review the generated `.graphifyignore` and add repository-specific exclusions.
 - Decide whether `graphify-out/` should be committed for your team or ignored locally.
 - Run `graphify codex install` and or `graphify claude install` inside a repository when you want those agents to prefer graph queries.
 - Review Graphify-generated agent instruction changes before committing them.
 - Treat graph results as navigation hints and read the relevant source before making edits.
-- Update Graphify within the version range tested by your setup when Graphify changes its CLI.
+- When upgrading beyond the documented tested version, rerun the verification sequence below because Graphify can change independently of this plugin.
 
-`aiterm.nvim` never installs Graphify, edits an existing `.graphifyignore`, changes `.gitignore`, installs Git hooks, rewrites `AGENTS.md`, or starts an HTTP server.
+Graphify also supports project-scoped and platform-specific assistant installation.
+For example, use `graphify install --project --platform codex` when you want the Graphify skill stored inside the current repository instead of your user profile.
+Review the files produced by any assistant installer before committing them.
+
+`aiterm.nvim` never installs Graphify, installs Git hooks, rewrites `AGENTS.md`, or starts an HTTP server.
+It changes `.gitignore` or an existing `.graphifyignore` only after you explicitly choose to ignore generated graph output.
 MCP setup is intentionally outside this first integration release.
+Graphify Git hooks are also user-owned and are never installed by this plugin.
+If you choose to use `graphify hook install`, consult the upstream instructions and refresh the hook after reinstalling or upgrading Graphify.
+
+Choosing `Skip and don't ask again` saves the choice in `stdpath("state")/aiterm/graphify.json` for the repository root.
+Every subdirectory shares that saved choice because they share one graph.
+The missing or stale graph confirmation appears at most once per repository during a Neovim session, regardless of the selected response.
+Run `:AITermGraphifyResetPrompts` from the repository or any of its subdirectories to restore the prompt.
+
+Choosing `Run now` for a missing graph opens a second prompt asking whether generated `graphify-out/` files should remain tracked by Git.
+Choosing `Ignore graph output in Git` appends `graphify-out/` to `.gitignore` and `.graphifyignore` only when an equivalent rule is not already present.
+Choosing `Keep graph output in Git` does not modify either file.
+
+### Graphify Lifecycles
+
+- `manual` disables automatic startup, directory, and AI-session checks.
+- `on_ai_start` checks when an AI session starts and is the default lifecycle.
+- `on_workspace_enter` checks on directory changes instead of normal AI-session starts.
+- `check.on_vim_enter` controls the separate startup check and defaults to `true` for every non-manual lifecycle.
+- `check.on_dir_changed` only applies to `on_workspace_enter`.
+- `check.on_ai_start` only applies to `on_ai_start`.
+- `check.on_treehouse_workspace` controls Treehouse agent checks within `on_ai_start`.
+
+Repository roots are resolved from the current file, terminal, or working directory before a graph check runs.
+Opening Neovim from a subdirectory uses the same graph as the repository root.
+When repositories are nested, `root.nested_repositories = "nearest"` selects the closest repository and `"outermost"` selects the highest matching repository.
+
+### Graphify Policies
+
+| Option | Values | Behavior |
+|---|---|---|
+| `missing_graph` | `never`, `ask`, `build` | Ignore a missing graph, ask before building, or build automatically when safety limits allow it. |
+| `stale_graph` | `never`, `ask`, `update` | Ignore a stale graph, ask before updating, or update automatically. |
+| `stale_detection` | `git`, `timestamp`, `always` | Compare the recorded Git snapshot, compare the latest commit time with the graph file, or consider the graph stale on every check. |
+| `remember_skips` | `never`, `session`, `repository` | Do not retain ordinary Skip choices, retain them for the Neovim session, or persist them in aiterm state. |
+| `allow_dirty_worktree` | boolean | Permit or reject automatic builds and updates while tracked or untracked worktree changes are present. Manual commands remain available. |
+| `build.output`, `update.output`, `query.output` | `terminal`, `scratch`, `silent` | Show the job in an aiterm terminal, collect results in a scratch buffer, or run without opening an output buffer. |
+
+Automatic builds also respect `safety.max_files_for_automatic_build` and `safety.max_bytes_for_automatic_build`.
+Manual `:AITermGraphifyBuild` and `:AITermGraphifyUpdate` commands are not blocked by those automatic-build limits.
 
 ### Graphify Commands
 
 | Command | Action |
 |---|---|
-| `:AitermGraphifyStatus` | Show executable, graph, and freshness status for the current repository. |
-| `:AitermGraphifyBuild` | Build a code-only graph and create a missing baseline `.graphifyignore`. |
-| `:AitermGraphifyUpdate[!]` | Incrementally update the graph, or force an update with `!`. |
-| `:AitermGraphifyQuery {question}` | Query the current repository graph. |
-| `:AitermGraphifyExplain {node}` | Explain a graph node and its neighbors. |
-| `:AitermGraphifyPath {source} {target}` | Find a shortest graph path between two node names. |
-| `:AitermGraphifyOpen` | Open `graphify-out/graph.html` when Graphify generated it. |
+| `:AITermGraphifyStatus` | Show executable, graph, and freshness status for the current repository. |
+| `:AITermGraphifyBuild` | Build a code-only graph and create a missing baseline `.graphifyignore`. |
+| `:AITermGraphifyUpdate[!]` | Incrementally update the graph, or force an update with `!`. |
+| `:AITermGraphifyQuery {question}` | Query the current repository graph. |
+| `:AITermGraphifyExplain {node}` | Explain a graph node and its neighbors. |
+| `:AITermGraphifyPath {source} {target}` | Find a shortest graph path between two node names. |
+| `:AITermGraphifyOpen` | Open `graphify-out/graph.html` when Graphify generated it. |
+| `:AITermGraphifyResetPrompts` | Clear saved choices and the current session prompt allowance for the repository. |
+
+The default `ui.open_html = "browser"` uses a browser launcher available on the current platform and falls back to Neovim's native `vim.ui.open()` implementation.
+Linux, macOS, and Windows are supported without requiring the same external command on every platform.
+Set `ui.open_html = "system"` to always use the native system association, or provide an argv list such as `{ "firefox", "--new-window" }` to select a browser explicitly without shell parsing.
+
+Recommended opt-in mappings:
+
+```lua
+mappings = {
+  graphify = {
+    status = "<leader>gs",
+    build = "<leader>gb",
+    update = "<leader>gu",
+    query = "<leader>gq",
+    open = "<leader>go",
+  },
+}
+```
+
+### Verify The Integration
+
+Run this sequence from a Git repository after enabling Graphify:
+
+```text
+graphify --version
+:checkhealth aiterm
+:AITermGraphifyStatus
+:AITermGraphifyBuild
+:AITermGraphifyQuery describe the architecture
+:AITermGraphifyOpen
+```
+
+The status command should report the repository root and either a missing, fresh, stale, or active build state.
+The build should create `graphify-out/graph.json` and `graphify-out/graph.html`, the query should use that graph, and the open command should launch the HTML graph in a browser.
 
 ### Graphify Agent Guidance
 
@@ -660,6 +745,10 @@ graphify claude install
 
 `aiterm.nvim` checks whether Graphify guidance appears in `AGENTS.md` or `CLAUDE.md` and warns once per repository when it is missing.
 It does not install the guidance because those files are repository-owned instructions.
+A global or skill-directory Graphify installation can still work even though the current repository-guidance check does not detect it yet.
+
+Graphify controls its own query logging behavior independently of `aiterm.nvim`.
+Current Graphify releases can write query metadata under the Graphify cache directory; consult the [upstream Graphify documentation](https://github.com/safishamsi/graphify) for `GRAPHIFY_QUERY_LOG` and `GRAPHIFY_QUERY_LOG_DISABLE` when repository or prompt privacy requires different handling.
 
 ### A note on permission-skipping flags
 
@@ -697,7 +786,7 @@ Every mapping it can create is listed here; each is configurable through the opt
 | `<leader>r` | `mappings.terminal.rename` | terminal buffers | Rename terminal |
 | `i` `a` `I` `A` | `mappings.terminal.insert_resume` | terminal buffers | Resume terminal input from normal mode, preserving the input cursor unless used on the live input row |
 | `<Esc>` | `mappings.terminal.persistent_esc` | persistent terminals | Leave terminal input mode |
-| `j`/`k`/`<CR>`/`q`/`<Esc>` | `mappings.picker` | picker floats | Navigate / confirm / cancel |
+| `j`/`k`/`<CR>`/`q`/`<Esc>` | `mappings.picker` | picker floats | Type an option number and press `<CR>` to select it; in normal mode, cycle, confirm, or cancel; `<Esc>` in the prompt returns to options and `i` resumes input. |
 | `d` / `c` / `q` | `mappings.run.popup` | run-config float | Default / custom / close |
 | `r` / `q` | fixed, shown in the dialog | treehouse confirm float | Confirm / cancel workspace return |
 
@@ -728,7 +817,7 @@ mappings = {
 | `:TerminalConfig` | run | Configure the run command for the current filetype |
 | `:TerminalProcesses`, `:TerminalProcessNew`, `:TerminalProcessKill`, `:TerminalProcessKillAll`, `:TerminalProcessAttachLast`, `:TerminalProcessAttachAll` | processes | Persistent session management |
 | `:TreehouseWorkspaces`, `:TreehouseAcquire`, `:TreehouseLease`, `:TreehouseStatus`, `:TreehouseReturn` | treehouse | Workspace management |
-| `:AitermGraphifyStatus`, `:AitermGraphifyBuild`, `:AitermGraphifyUpdate`, `:AitermGraphifyQuery`, `:AitermGraphifyExplain`, `:AitermGraphifyPath`, `:AitermGraphifyOpen` | graphify | Repository graph status, lifecycle, and queries |
+| `:AITermGraphifyStatus`, `:AITermGraphifyBuild`, `:AITermGraphifyUpdate`, `:AITermGraphifyQuery`, `:AITermGraphifyExplain`, `:AITermGraphifyPath`, `:AITermGraphifyOpen` | graphify | Repository graph status, lifecycle, and queries |
 
 ## Tabline / statusline integration
 
@@ -861,7 +950,7 @@ Treehouse support requires both the treehouse CLI and persistent process support
 
 If Graphify commands are unavailable, run `graphify --help` from the same shell that launches Neovim.
 Install the official package with `uv tool install graphifyy`, then run `:checkhealth aiterm`.
-If a graph is unexpectedly stale, run `:AitermGraphifyUpdate` or `:AitermGraphifyUpdate!` after a refactor that removed files.
+If a graph is unexpectedly stale, run `:AITermGraphifyUpdate` or `:AITermGraphifyUpdate!` after a refactor that removed files.
 
 If picker navigation feels wrong, remember that picker mappings are local to the picker floats.
 Normal-mode `j` and `k` cycle options by default, and entering insert mode focuses the search prompt.

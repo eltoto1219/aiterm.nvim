@@ -55,6 +55,7 @@ M.defaults = {
         },
         lifecycle = "on_ai_start", -- manual | on_ai_start | on_workspace_enter
         check = {
+            on_vim_enter = true,
             on_dir_changed = true,
             on_ai_start = true,
             on_treehouse_workspace = true,
@@ -101,8 +102,8 @@ M.defaults = {
         },
         ui = {
             notifications = true,
-            open_html = "system", -- system | disabled
-            confirm = nil, -- nil uses vim.ui.select
+            open_html = "browser", -- browser | system | disabled | command argv
+            confirm = nil, -- nil uses aiterm's built-in picker
         },
         callbacks = {
             on_status = nil,

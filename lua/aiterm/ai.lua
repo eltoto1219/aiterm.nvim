@@ -596,6 +596,16 @@ local function trust_claude_workspace(cwd)
     vim.fn.writefile({ vim.json.encode(state) }, path)
 end
 
+local function prepare_graphify_workspace(kind, cwd, context)
+    if not config.opts.graphify.enabled then
+        return
+    end
+
+    context = vim.tbl_extend("force", { kind = kind }, context or {})
+    context.defer_graphify = nil
+    require("aiterm.graphify").prepare_workspace(cwd, context)
+end
+
 function M.prepare_workspace(kind, cwd, context)
     local provider = ai_provider(kind)
     if provider and provider.prepare_workspace then
@@ -604,14 +614,14 @@ function M.prepare_workspace(kind, cwd, context)
         trust_claude_workspace(cwd)
     end
 
-    if config.opts.graphify.enabled then
-        context = vim.tbl_extend("force", { kind = kind }, context or {})
-        require("aiterm.graphify").prepare_workspace(cwd, context)
+    if not (context and context.defer_graphify) then
+        prepare_graphify_workspace(kind, cwd, context)
     end
 end
 
-local function spawn(entry, resume)
-    M.prepare_workspace(entry.kind, entry.cwd)
+local function spawn(entry, resume, options)
+    options = options or {}
+    M.prepare_workspace(entry.kind, entry.cwd, { defer_graphify = true })
 
     local argv = command_builder(entry.kind)(entry, resume)
     local bufnr = terminal.open_command(argv, entry_label(entry), { cwd = entry.cwd, ai_kind = entry.kind })
@@ -645,10 +655,14 @@ local function spawn(entry, resume)
         watch_title(bufnr, entry.key)
     end
 
+    if not options.defer_graphify then
+        prepare_graphify_workspace(entry.kind, entry.cwd)
+    end
+
     return bufnr
 end
 
-function M.open(kind, cwd)
+function M.open(kind, cwd, options)
     if not M.ensure_available(kind) then
         return
     end
@@ -663,7 +677,7 @@ function M.open(kind, cwd)
         last_used = os.time(),
     }
 
-    return spawn(entry, false)
+    return spawn(entry, false, options)
 end
 
 function M.is_ai_buffer(bufnr)
@@ -773,12 +787,12 @@ end
 -- Restores cached sessions (scoped to a directory when given), oldest first so
 -- the most recent one ends up in the current window. Returns the most recent
 -- restored buffer and count.
-local function restore_cached(scope_cwd)
+local function restore_cached(scope_cwd, options)
     local list = restorable_entries(scope_cwd)
     local focus = nil
 
     for i = #list, 1, -1 do
-        local bufnr = spawn(list[i], true)
+        local bufnr = spawn(list[i], true, options)
         if bufnr and i == 1 then
             focus = bufnr
         end
@@ -832,13 +846,17 @@ function M.pick()
 end
 
 function M.restore_here()
-    local focus, count = restore_cached(vim.fn.getcwd())
+    local focus, count = restore_cached(vim.fn.getcwd(), { defer_graphify = true })
     if count == 0 then
         vim.notify("No cached AI harness sessions to restore for this directory", vim.log.levels.INFO)
         return
     end
 
     vim.notify(("Restored %d AI harness session(s)"):format(count))
+    local entry = focus and entries[buffers[focus]] or nil
+    if entry then
+        prepare_graphify_workspace(entry.kind, entry.cwd)
+    end
     return focus
 end
 
@@ -931,6 +949,8 @@ local function should_autostart()
         and not vim.g.aiterm_reading_stdin
         and not vim.g.aiterm_disable_ai_autostart
 end
+
+M.should_autostart = should_autostart
 
 function M.autostart_kind()
     local preferred = config.opts.ai.autostart_kind
@@ -1169,19 +1189,24 @@ function M.setup()
                         return
                     end
 
-                    local bufnr, count = restore_cached(vim.fn.getcwd())
+                    local bufnr, count = restore_cached(vim.fn.getcwd(), { defer_graphify = true })
+                    local graphify_entry = bufnr and entries[buffers[bufnr]] or nil
                     if count > 0 then
                         vim.notify(("Restored %d AI harness session(s)"):format(count))
                     else
                         local kind = M.autostart_kind()
                         if kind then
-                            bufnr = M.open(kind)
+                            bufnr = M.open(kind, nil, { defer_graphify = true })
+                            graphify_entry = bufnr and entries[buffers[bufnr]] or nil
                         end
                     end
 
                     if bufnr then
                         vim.defer_fn(function()
                             focus_ai_buffer(bufnr)
+                            if graphify_entry then
+                                prepare_graphify_workspace(graphify_entry.kind, graphify_entry.cwd)
+                            end
                         end, 400)
                     end
                 end, 100)

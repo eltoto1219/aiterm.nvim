@@ -26,6 +26,11 @@ local function matches(item, query)
         return true
     end
 
+    local option_number = query:match("^(%d+)%.?$")
+    if option_number then
+        return item.index == tonumber(option_number)
+    end
+
     local ordinal = item.ordinal
     query = query:lower()
     if ordinal:find(query, 1, true) then
@@ -101,6 +106,13 @@ function M.select(prompt, labels, on_choice, on_cancel)
         return
     end
 
+    -- A picker can open while an AI terminal owns terminal-mode input. Leave
+    -- that mode before creating and focusing the prompt float so subsequent
+    -- keys are consumed only by the picker search buffer.
+    if vim.bo.buftype == "terminal" then
+        vim.cmd.stopinsert()
+    end
+
     setup_highlights()
 
     local all_items = normalize_items(labels)
@@ -147,7 +159,7 @@ function M.select(prompt, labels, on_choice, on_cancel)
     vim.wo[list_winid].winhighlight = "CursorLine:AitermPickerSelected"
     vim.wo[prompt_winid].wrap = false
 
-    local prompt_prefix = "Search: "
+    local prompt_prefix = "> "
     local rendering = false
     local closed = false
 
@@ -214,7 +226,13 @@ function M.select(prompt, labels, on_choice, on_cancel)
         local item = visible[selected]
         close_picker()
         if item then
-            on_choice(item.index)
+            -- Let the current mapping and insert-mode lifecycle finish before
+            -- a callback can open another picker. Opening it synchronously can
+            -- leave the new option list current while Insert mode is inherited
+            -- from the prompt that was just closed.
+            vim.schedule(function()
+                on_choice(item.index)
+            end)
         end
     end
 
@@ -259,7 +277,23 @@ function M.select(prompt, labels, on_choice, on_cancel)
         if vim.api.nvim_win_is_valid(prompt_winid) then
             vim.api.nvim_set_current_win(prompt_winid)
             vim.api.nvim_win_set_cursor(prompt_winid, { 1, #prompt_prefix + #query })
-            vim.cmd.startinsert()
+            vim.schedule(function()
+                if closed or not vim.api.nvim_win_is_valid(prompt_winid) then
+                    return
+                end
+                if vim.api.nvim_get_current_win() ~= prompt_winid then
+                    return
+                end
+                if vim.api.nvim_get_mode().mode:sub(1, 1) ~= "i" then
+                    vim.api.nvim_feedkeys("i", "nx!", false)
+                end
+            end)
+        end
+    end
+
+    local function focus_list()
+        if not closed and vim.api.nvim_win_is_valid(list_winid) then
+            vim.api.nvim_set_current_win(list_winid)
         end
     end
 
@@ -271,7 +305,19 @@ function M.select(prompt, labels, on_choice, on_cancel)
     set_keymaps("i", "<C-n>", move(1), "Picker: next item")
     set_keymaps("i", "<C-p>", move(-1), "Picker: previous item")
     set_keymaps({ "n", "i" }, mappings.confirm, choose_current, "Picker: select item")
-    set_keymaps({ "n", "i" }, mappings.cancel, cancel_picker, "Picker: cancel")
+    -- Insert-mode <Esc> must leave insert mode and hand focus to the option
+    -- list through InsertLeave. Keep cancellation in normal mode so users can
+    -- cycle choices, then press i to resume editing the prompt text.
+    set_keymaps("n", mappings.cancel, cancel_picker, "Picker: cancel")
+    vim.keymap.set("i", "<Esc>", function()
+        vim.cmd.stopinsert()
+        focus_list()
+    end, {
+        buffer = prompt_bufnr,
+        silent = true,
+        nowait = true,
+        desc = "Picker: focus options",
+    })
     set_keymaps("n", "i", focus_prompt, "Picker: focus search")
     set_keymaps("n", "/", focus_prompt, "Picker: focus search")
 
@@ -302,7 +348,7 @@ function M.select(prompt, labels, on_choice, on_cancel)
                 if not is_picker_win(vim.api.nvim_get_current_win()) then
                     return
                 end
-                vim.api.nvim_set_current_win(list_winid)
+                focus_list()
             end)
         end,
     })

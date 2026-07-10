@@ -1,0 +1,232 @@
+{
+  "examples/antonio-lazy.lua": {
+    "mtime": 1783564428.7383583,
+    "ast_hash": "3a61ba69c34b041352e98aaf71cefb5c",
+    "semantic_hash": "3a61ba69c34b041352e98aaf71cefb5c"
+  },
+  "lua/aiterm/ai.lua": {
+    "mtime": 1783658767.122338,
+    "ast_hash": "0d51af96be8291858dc49df4748e5b7d",
+    "semantic_hash": ""
+  },
+  "lua/aiterm/buffers.lua": {
+    "mtime": 1783632326.842101,
+    "ast_hash": "8e55c67be5578a3147febef6b3e9749f",
+    "semantic_hash": "8e55c67be5578a3147febef6b3e9749f"
+  },
+  "lua/aiterm/config.lua": {
+    "mtime": 1783659741.221944,
+    "ast_hash": "a4cb9c82d7d7f196efd44f925ed2527e",
+    "semantic_hash": ""
+  },
+  "lua/aiterm/graphify.lua": {
+    "mtime": 1783660096.1194973,
+    "ast_hash": "e2e748f81445bb2bab41e0ed4f4b6920",
+    "semantic_hash": ""
+  },
+  "lua/aiterm/health.lua": {
+    "mtime": 1783639530.6855662,
+    "ast_hash": "1fddd8d731e53cf30dabcb3dd7157f10",
+    "semantic_hash": "1fddd8d731e53cf30dabcb3dd7157f10"
+  },
+  "lua/aiterm/init.lua": {
+    "mtime": 1783639123.7280164,
+    "ast_hash": "d63bede54b31e959916cb66dc16d4982",
+    "semantic_hash": "d63bede54b31e959916cb66dc16d4982"
+  },
+  "lua/aiterm/mappings.lua": {
+    "mtime": 1783639123.7290163,
+    "ast_hash": "5f83783ec558758ebd2d5c906dfe1286",
+    "semantic_hash": "5f83783ec558758ebd2d5c906dfe1286"
+  },
+  "lua/aiterm/process_backend.lua": {
+    "mtime": 1783401529.123994,
+    "ast_hash": "48ca707c50c198d0de81087bb0eca458",
+    "semantic_hash": "48ca707c50c198d0de81087bb0eca458"
+  },
+  "lua/aiterm/processes.lua": {
+    "mtime": 1783562861.9348428,
+    "ast_hash": "758154ea00121a8fb5556c1d0373ed29",
+    "semantic_hash": "758154ea00121a8fb5556c1d0373ed29"
+  },
+  "lua/aiterm/providers.lua": {
+    "mtime": 1783564925.550986,
+    "ast_hash": "397ca258c42806469738ae25b305dcb7",
+    "semantic_hash": "397ca258c42806469738ae25b305dcb7"
+  },
+  "lua/aiterm/run.lua": {
+    "mtime": 1783558615.9635599,
+    "ast_hash": "4d174d9aac0b51081d810a12f374e4e1",
+    "semantic_hash": "4d174d9aac0b51081d810a12f374e4e1"
+  },
+  "lua/aiterm/tabline.lua": {
+    "mtime": 1783629406.9205625,
+    "ast_hash": "5a7987fc66702227b8f5a7d006ee35e3",
+    "semantic_hash": "5a7987fc66702227b8f5a7d006ee35e3"
+  },
+  "lua/aiterm/terminal.lua": {
+    "mtime": 1783639123.7280164,
+    "ast_hash": "0161bfb5429f698eedd7cbe867cb2fdf",
+    "semantic_hash": "0161bfb5429f698eedd7cbe867cb2fdf"
+  },
+  "lua/aiterm/treehouse.lua": {
+    "mtime": 1783639286.8536136,
+    "ast_hash": "c43228ff230b9117b931f7b67f252691",
+    "semantic_hash": "c43228ff230b9117b931f7b67f252691"
+  },
+  "lua/aiterm/ui/colors.lua": {
+    "mtime": 1783401261.6570272,
+    "ast_hash": "8f4aba9a941911bfc12e2b986dddafd9",
+    "semantic_hash": "8f4aba9a941911bfc12e2b986dddafd9"
+  },
+  "lua/aiterm/ui/input.lua": {
+    "mtime": 1783401261.657299,
+    "ast_hash": "7bd7591db2322858010a9be6c3b366c2",
+    "semantic_hash": "7bd7591db2322858010a9be6c3b366c2"
+  },
+  "lua/aiterm/ui/picker.lua": {
+    "mtime": 1783659025.3798265,
+    "ast_hash": "6322164046588464c06b106b8abf480b",
+    "semantic_hash": ""
+  },
+  "tests/ai_picker_cwd.lua": {
+    "mtime": 1783565472.5698981,
+    "ast_hash": "6f556dc53bb668d4b9d5c948e4ef00ba",
+    "semantic_hash": "6f556dc53bb668d4b9d5c948e4ef00ba"
+  },
+  "tests/autostart_kind.lua": {
+    "mtime": 1783565477.591942,
+    "ast_hash": "56be2b2097ec157c5fa82d31292563cb",
+    "semantic_hash": "56be2b2097ec157c5fa82d31292563cb"
+  },
+  "tests/buffer_navigation.lua": {
+    "mtime": 1783632343.6280527,
+    "ast_hash": "5073870d8173834bd26aa0991d22f2f0",
+    "semantic_hash": "5073870d8173834bd26aa0991d22f2f0"
+  },
+  "tests/codex_duplicate_repair.lua": {
+    "mtime": 1783638359.527686,
+    "ast_hash": "15d6878a363b17b76c61898c6c347842",
+    "semantic_hash": "15d6878a363b17b76c61898c6c347842"
+  },
+  "tests/codex_qa_multi_session.lua": {
+    "mtime": 1783630502.6751828,
+    "ast_hash": "0deb9046d845b3bef567d86306619ea5",
+    "semantic_hash": "0deb9046d845b3bef567d86306619ea5"
+  },
+  "tests/codex_qa_wipeout_before_leave.lua": {
+    "mtime": 1783566659.7167108,
+    "ast_hash": "2d822b7d94603625ebb91adb99f58e5f",
+    "semantic_hash": "2d822b7d94603625ebb91adb99f58e5f"
+  },
+  "tests/codex_quit_before_id.lua": {
+    "mtime": 1783565602.124062,
+    "ast_hash": "686da5f2d7aaefdf9eb65951b0a47b85",
+    "semantic_hash": "686da5f2d7aaefdf9eb65951b0a47b85"
+  },
+  "tests/codex_title_rename.lua": {
+    "mtime": 1783631735.0772429,
+    "ast_hash": "606013d70058f4f2daaab003ecd8f144",
+    "semantic_hash": "606013d70058f4f2daaab003ecd8f144"
+  },
+  "tests/graphify.lua": {
+    "mtime": 1783660151.9523792,
+    "ast_hash": "3ca4f44d3a469d52386cfbe55d2c98ef",
+    "semantic_hash": ""
+  },
+  "tests/graphify_startup.lua": {
+    "mtime": 1783658767.125338,
+    "ast_hash": "a84952650471baf928c6bca02f1a676d",
+    "semantic_hash": ""
+  },
+  "tests/picker.lua": {
+    "mtime": 1783659025.3798265,
+    "ast_hash": "c537498301b59b9ce08edb9bf917e945",
+    "semantic_hash": ""
+  },
+  "tests/providers.lua": {
+    "mtime": 1783565050.862414,
+    "ast_hash": "0d944469277c0c9cdd04f9de0c68e436",
+    "semantic_hash": "0d944469277c0c9cdd04f9de0c68e436"
+  },
+  "tests/smoke.lua": {
+    "mtime": 1783565053.934449,
+    "ast_hash": "3aa755dfa9c994c41be9f060f87b4614",
+    "semantic_hash": "3aa755dfa9c994c41be9f060f87b4614"
+  },
+  "tests/tabline.lua": {
+    "mtime": 1783629422.2088,
+    "ast_hash": "9231ddf375261e67fe6377388971887f",
+    "semantic_hash": "9231ddf375261e67fe6377388971887f"
+  },
+  "tests/terminal_insert_resume.lua": {
+    "mtime": 1783565847.151391,
+    "ast_hash": "902a19446547f0757ac5a85bae4d089c",
+    "semantic_hash": "902a19446547f0757ac5a85bae4d089c"
+  },
+  "tests/terminal_labels.lua": {
+    "mtime": 1783637646.7178526,
+    "ast_hash": "8ace6b42bc7135cc20e5a89f529eddc6",
+    "semantic_hash": "8ace6b42bc7135cc20e5a89f529eddc6"
+  },
+  "tests/toggle_fallback.lua": {
+    "mtime": 1783559812.7442992,
+    "ast_hash": "a299ddb4d4e48bc5d0b5d88789ed88e7",
+    "semantic_hash": "a299ddb4d4e48bc5d0b5d88789ed88e7"
+  },
+  "tests/unused_claude.lua": {
+    "mtime": 1783565610.1711361,
+    "ast_hash": "22c5531980466cc233026431108b9c1e",
+    "semantic_hash": "22c5531980466cc233026431108b9c1e"
+  },
+  "tests/unused_codex.lua": {
+    "mtime": 1783565606.132099,
+    "ast_hash": "087fc52e8049fc291c7fa74285e6d3bf",
+    "semantic_hash": "087fc52e8049fc291c7fa74285e6d3bf"
+  },
+  "tests/picker_terminal_input.lua": {
+    "mtime": 1783658817.9378493,
+    "ast_hash": "e7c20e2278546deab3514c0db5306534",
+    "semantic_hash": ""
+  },
+  ".github/dependabot.yml": {
+    "mtime": 1783565098.4749568,
+    "ast_hash": "1c4e58b97e09b5974e75f0035bc7f935",
+    "semantic_hash": ""
+  },
+  ".github/workflows/ci.yml": {
+    "mtime": 1783565975.3688838,
+    "ast_hash": "26754dfe541ac30b2bbd00e2832d7dbd",
+    "semantic_hash": ""
+  },
+  ".github/workflows/release.yml": {
+    "mtime": 1783565975.3690133,
+    "ast_hash": "07b27304972e6e073f00ba4a86735152",
+    "semantic_hash": ""
+  },
+  "AGENT.md": {
+    "mtime": 1783655381.3767135,
+    "ast_hash": "216615a3fb170ce987f8657135d96f0b",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1783655381.3767135,
+    "ast_hash": "216615a3fb170ce987f8657135d96f0b",
+    "semantic_hash": ""
+  },
+  "CONTRIBUTING.md": {
+    "mtime": 1783623054.220665,
+    "ast_hash": "3f81fe45c832009a4eb9568ee4ce8916",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1783660096.1214972,
+    "ast_hash": "8ab112436c998edbc3db755d49b80966",
+    "semantic_hash": ""
+  },
+  "TODO.md": {
+    "mtime": 1783568610.8435004,
+    "ast_hash": "ae27d2a817c9c1bcb514f9b6abf23a97",
+    "semantic_hash": ""
+  }
+}

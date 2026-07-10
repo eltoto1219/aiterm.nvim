@@ -4,6 +4,8 @@ local config = require("aiterm.config")
 
 local jobs = {}
 local session_skips = {}
+local prompted_repositories = {}
+local pending_choices = {}
 local warned_guidance = {}
 local stored_state = nil
 
@@ -135,7 +137,9 @@ end
 function M.root(path)
     local graphify = opts()
     local candidate = path or vim.api.nvim_buf_get_name(0)
-    if candidate == "" then
+    if not path and vim.bo.buftype ~= "" then
+        candidate = vim.fn.getcwd()
+    elseif candidate == "" then
         candidate = vim.fn.getcwd()
     end
 
@@ -198,6 +202,60 @@ function M.ensure_ignore(root)
     end
     vim.fn.writefile(lines, path)
     notify("created " .. vim.fs.basename(path) .. "; review it for repository-specific exclusions")
+    return true
+end
+
+local function graph_output_ignore_present(lines)
+    for _, line in ipairs(lines) do
+        local pattern = vim.trim(line)
+        if
+            pattern == "graphify-out"
+            or pattern == "graphify-out/"
+            or pattern == "/graphify-out"
+            or pattern == "/graphify-out/"
+        then
+            return true
+        end
+    end
+    return false
+end
+
+local function append_graph_output_ignore(path)
+    local lines = vim.fn.filereadable(path) == 1 and vim.fn.readfile(path) or {}
+    if graph_output_ignore_present(lines) then
+        return false
+    end
+    if #lines > 0 and lines[#lines] ~= "" then
+        lines[#lines + 1] = ""
+    end
+    lines[#lines + 1] = "graphify-out/"
+    vim.fn.writefile(lines, path)
+    return true
+end
+
+function M.ignore_graph_output(root)
+    root = root or M.root()
+    if not root then
+        return false
+    end
+
+    M.ensure_ignore(root)
+    local updated = {}
+    local gitignore = vim.fs.joinpath(root, ".gitignore")
+    if append_graph_output_ignore(gitignore) then
+        updated[#updated + 1] = ".gitignore"
+    end
+
+    local graphifyignore = M.ignore_path(root)
+    if append_graph_output_ignore(graphifyignore) then
+        updated[#updated + 1] = vim.fs.basename(graphifyignore)
+    end
+
+    if #updated > 0 then
+        notify("ignored graphify-out/ in " .. table.concat(updated, " and "))
+    else
+        notify("graphify-out/ is already ignored")
+    end
     return true
 end
 
@@ -277,7 +335,13 @@ local function invoke_callback(name, ...)
     end
 end
 
-local function remember_skip(root, kind)
+local function remember_skip(root, kind, persistent)
+    if persistent then
+        state_for(root).skips = state_for(root).skips or {}
+        state_for(root).skips[kind] = true
+        save_state()
+        return
+    end
     if opts().remember_skips == "never" then
         return
     end
@@ -292,8 +356,12 @@ local function remember_skip(root, kind)
 end
 
 local function skipped(root, kind)
+    local stored = load_state()[root]
+    if stored and stored.skips and stored.skips[kind] then
+        return true
+    end
     if opts().remember_skips == "repository" then
-        return state_for(root).skips and state_for(root).skips[kind] or false
+        return false
     end
     return session_skips[root] and session_skips[root][kind] or false
 end
@@ -579,6 +647,59 @@ function M.query_prompt()
     end)
 end
 
+local function start_html_opener(argv)
+    local job = vim.fn.jobstart(argv, {
+        detach = true,
+        on_exit = function(_, code)
+            if code ~= 0 then
+                vim.schedule(function()
+                    notify("HTML opener exited with code " .. code, vim.log.levels.WARN)
+                end)
+            end
+        end,
+    })
+    if job <= 0 then
+        notify("could not start HTML opener: " .. table.concat(argv, " "), vim.log.levels.ERROR)
+        return false
+    end
+    return true
+end
+
+local function browser_argv(path)
+    local setting = opts().ui.open_html
+    if type(setting) == "table" then
+        if type(setting[1]) ~= "string" or setting[1] == "" then
+            return nil
+        end
+        local argv = vim.deepcopy(setting)
+        argv[#argv + 1] = path
+        return argv
+    end
+    if
+        type(setting) == "string"
+        and setting ~= ""
+        and setting ~= "browser"
+        and setting ~= "system"
+        and setting ~= "disabled"
+    then
+        return { setting, path }
+    end
+
+    if vim.fn.has("mac") == 1 and vim.fn.executable("open") == 1 then
+        return { "open", path }
+    end
+    if vim.fn.has("unix") == 1 and vim.fn.executable("sensible-browser") == 1 then
+        return { "sensible-browser", path }
+    end
+    for _, executable in ipairs({ "google-chrome", "chromium", "firefox" }) do
+        if vim.fn.executable(executable) == 1 then
+            return { executable, path }
+        end
+    end
+    -- Neovim implements vim.ui.open with the native opener for the current
+    -- platform, including Windows. Returning nil selects that fallback.
+end
+
 function M.open_html(root)
     root = root or M.root()
     if not root then
@@ -594,11 +715,24 @@ function M.open_html(root)
         notify("opening graph HTML is disabled")
         return
     end
-    if vim.ui.open then
-        vim.ui.open(path)
-    else
-        notify("open " .. path)
+
+    if opts().ui.open_html ~= "system" then
+        local argv = browser_argv(path)
+        if argv then
+            return start_html_opener(argv)
+        end
     end
+
+    if not vim.ui.open then
+        notify("no HTML opener is available for " .. path, vim.log.levels.WARN)
+        return false
+    end
+    local _, err = vim.ui.open(path)
+    if err then
+        notify("could not open graph HTML: " .. tostring(err), vim.log.levels.ERROR)
+        return false
+    end
+    return true
 end
 
 local function guidance_present(root, provider)
@@ -648,16 +782,70 @@ local function check_guidance(root, active_provider)
 end
 
 local function choose(root, kind, message, action)
-    if skipped(root, kind) then
+    if
+        prompted_repositories[root]
+        or skipped(root, kind)
+        or (pending_choices[root] and pending_choices[root][kind])
+    then
         return
     end
-    local select = opts().ui.confirm or vim.ui.select
-    select({ "Run now", "Skip" }, { prompt = "Graphify: " .. message }, function(choice)
+
+    prompted_repositories[root] = true
+    pending_choices[root] = pending_choices[root] or {}
+    pending_choices[root][kind] = true
+
+    local function respond(choice)
+        pending_choices[root][kind] = nil
         if choice == "Run now" then
-            action()
+            local output_choices = { "Keep graph output in Git", "Ignore graph output in Git" }
+            local function finish_output_choice(output_choice)
+                if output_choice == "Ignore graph output in Git" then
+                    M.ignore_graph_output(root)
+                end
+                action()
+            end
+
+            local confirm = opts().ui.confirm
+            if type(confirm) == "function" then
+                confirm(
+                    output_choices,
+                    { prompt = "Graphify: keep generated graph output in Git?" },
+                    finish_output_choice
+                )
+                return
+            end
+            require("aiterm.ui.picker").select(
+                "Graphify: keep generated graph output in Git?",
+                output_choices,
+                function(index)
+                    finish_output_choice(output_choices[index])
+                end,
+                function()
+                    finish_output_choice(nil)
+                end
+            )
+        elseif choice == "Skip and don't ask again" then
+            remember_skip(root, kind, true)
         else
             remember_skip(root, kind)
         end
+    end
+
+    local confirm = opts().ui.confirm
+    if type(confirm) == "function" then
+        confirm({ "Run now", "Skip", "Skip and don't ask again" }, { prompt = "Graphify: " .. message }, respond)
+        return
+    end
+
+    -- The built-in vim.ui.select fallback is implemented with inputlist(),
+    -- which clashes with command-line UIs such as noice.nvim during startup.
+    -- Keep this picker self-contained so its list and search prompt share one
+    -- lifecycle and do not leave overlapping command-line floats behind.
+    local choices = { "Run now", "Skip", "Skip and don't ask again" }
+    require("aiterm.ui.picker").select("Graphify: " .. message, choices, function(index)
+        respond(choices[index])
+    end, function()
+        respond(nil)
     end)
 end
 
@@ -667,11 +855,17 @@ function M.prepare_workspace(path, context)
     if not graphify.enabled then
         return
     end
-    if context.kind and graphify.lifecycle ~= "on_ai_start" then
-        return
-    end
-    if not context.kind and graphify.lifecycle ~= "on_workspace_enter" then
-        return
+    if context.source == "startup" then
+        if not graphify.check.on_vim_enter or graphify.lifecycle == "manual" then
+            return
+        end
+    else
+        if context.kind and graphify.lifecycle ~= "on_ai_start" then
+            return
+        end
+        if not context.kind and graphify.lifecycle ~= "on_workspace_enter" then
+            return
+        end
     end
 
     if context.source == "treehouse" and not graphify.check.on_treehouse_workspace then
@@ -717,34 +911,53 @@ function M.show_status()
     return status
 end
 
+function M.reset_skips(root)
+    root = root or M.root()
+    if not root then
+        notify("no repository root found", vim.log.levels.WARN)
+        return false
+    end
+
+    local stored = load_state()[root]
+    if stored then
+        stored.skips = nil
+        save_state()
+    end
+    session_skips[root] = nil
+    prompted_repositories[root] = nil
+    pending_choices[root] = nil
+    notify("cleared saved Graphify prompt choices for " .. root)
+    return true
+end
+
 function M.setup()
-    vim.api.nvim_create_user_command("AitermGraphifyStatus", M.show_status, {
+    vim.api.nvim_create_user_command("AITermGraphifyStatus", M.show_status, {
         desc = "Show Graphify status for the current repository",
     })
-    vim.api.nvim_create_user_command("AitermGraphifyBuild", function()
+    vim.api.nvim_create_user_command("AITermGraphifyBuild", function()
         M.build(M.root())
     end, {
         desc = "Build a Graphify graph for the current repository",
     })
-    vim.api.nvim_create_user_command("AitermGraphifyUpdate", function(command)
+    vim.api.nvim_create_user_command("AITermGraphifyUpdate", function(command)
         M.update(M.root(), { force = command.bang })
     end, {
         bang = true,
         desc = "Incrementally update the Graphify graph for the current repository",
     })
-    vim.api.nvim_create_user_command("AitermGraphifyQuery", function(command)
+    vim.api.nvim_create_user_command("AITermGraphifyQuery", function(command)
         M.query(command.args)
     end, {
         nargs = "+",
         desc = "Query the Graphify graph for the current repository",
     })
-    vim.api.nvim_create_user_command("AitermGraphifyExplain", function(command)
+    vim.api.nvim_create_user_command("AITermGraphifyExplain", function(command)
         M.explain(command.args)
     end, {
         nargs = "+",
         desc = "Explain a Graphify node for the current repository",
     })
-    vim.api.nvim_create_user_command("AitermGraphifyPath", function(command)
+    vim.api.nvim_create_user_command("AITermGraphifyPath", function(command)
         if #command.fargs ~= 2 then
             notify("path requires exactly two node names", vim.log.levels.WARN)
             return
@@ -754,13 +967,42 @@ function M.setup()
         nargs = "+",
         desc = "Find the Graphify path between two nodes",
     })
-    vim.api.nvim_create_user_command("AitermGraphifyOpen", M.open_html, {
+    vim.api.nvim_create_user_command("AITermGraphifyOpen", function()
+        M.open_html()
+    end, {
         desc = "Open the Graphify HTML graph for the current repository",
     })
+    vim.api.nvim_create_user_command("AITermGraphifyResetPrompts", function()
+        M.reset_skips()
+    end, {
+        desc = "Clear saved Graphify skip choices for the current repository",
+    })
 
+    local group = vim.api.nvim_create_augroup("AitermGraphify", { clear = true })
+    if opts().check.on_vim_enter then
+        vim.api.nvim_create_autocmd("VimEnter", {
+            group = group,
+            callback = function()
+                -- AI autostart performs its own Graphify preparation only
+                -- after the terminal has received focus. Do not start a
+                -- competing timer that can leave a visible picker focused
+                -- behind that terminal.
+                local ai_owns_startup = opts().lifecycle == "on_ai_start"
+                    and config.opts.ai.enabled
+                    and config.opts.ai.autostart
+                    and require("aiterm.ai").should_autostart()
+                if ai_owns_startup then
+                    return
+                end
+                vim.defer_fn(function()
+                    M.prepare_workspace(vim.fn.getcwd(), { source = "startup" })
+                end, opts().check.debounce_ms)
+            end,
+        })
+    end
     if opts().lifecycle == "on_workspace_enter" and opts().check.on_dir_changed then
         vim.api.nvim_create_autocmd("DirChanged", {
-            group = vim.api.nvim_create_augroup("AitermGraphify", { clear = true }),
+            group = group,
             callback = function(event)
                 vim.defer_fn(function()
                     M.prepare_workspace(event.file, {})

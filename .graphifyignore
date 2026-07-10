@@ -1,0 +1,47 @@
+# Created by aiterm.nvim for Graphify.
+# Add repository-specific exclusions below. This file is never overwritten by aiterm.nvim.
+
+# Environments, dependencies, and caches
+.venv/
+venv/
+env/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+
+# Build and test output
+dist/
+build/
+coverage/
+htmlcov/
+target/
+
+# Media
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.mp3
+*.wav
+*.flac
+
+# Large data and local databases
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.h5
+*.hdf5
+*.npy
+*.npz
+*.sqlite
+*.sqlite3
+*.db

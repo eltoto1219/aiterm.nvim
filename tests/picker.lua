@@ -34,19 +34,39 @@ assert(lines[1] == "1. Alpha", "first picker item is numbered")
 assert(lines[2] == "2. Beta", "second picker item is numbered")
 assert(lines[3] == "3. Gamma", "third picker item is numbered")
 assert(#lines == 3, "picker list does not include the search prompt")
-assert(prompt_lines[1] == "Search: ", "picker exposes a separate search prompt")
+assert(prompt_lines[1] == "> ", "picker exposes a concise search prompt")
 assert(vim.api.nvim_win_get_height(prompt_winid) == 1, "picker search prompt is one line tall")
 assert(
     (vim.wo[list_winid].winhighlight or ""):find("CursorLine:AitermPickerSelected", 1, true),
     "picker uses its selected-line highlight"
 )
 assert(vim.fn.hlexists("AitermPickerPrompt") == 1, "picker defines a highlighted search prompt")
+local escape_mapping = nil
 for _, map in ipairs(vim.api.nvim_buf_get_keymap(prompt_bufnr, "i")) do
     assert(map.lhs ~= "jk", "picker does not install an insert-mode jk mapping")
+    if map.desc == "Picker: focus options" then
+        escape_mapping = map
+    end
 end
+assert(
+    escape_mapping and type(escape_mapping.callback) == "function",
+    "escape leaves search for picker options in insert mode"
+)
 
-vim.api.nvim_feedkeys("jkj", "x", false)
-vim.wait(20)
+assert(
+    vim.wait(1000, function()
+        return vim.fn.mode() == "i"
+    end),
+    "picker starts in live Search input"
+)
+vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
+assert(
+    vim.wait(100, function()
+        return vim.api.nvim_get_current_win() == list_winid
+    end),
+    "escape exits Search and focuses picker options"
+)
+vim.api.nvim_feedkeys("j", "x", false)
 assert(vim.api.nvim_get_current_win() == list_winid, "leaving insert mode focuses picker options")
 local marks = vim.api.nvim_buf_get_extmarks(list_bufnr, ns, 0, -1, { details = true })
 local selected_row = nil
@@ -73,6 +93,12 @@ vim.wait(100, function()
     return vim.api.nvim_get_current_win() == prompt_winid
 end)
 assert(vim.api.nvim_get_current_win() == prompt_winid, "entering insert mode focuses picker search")
+assert(
+    vim.wait(1000, function()
+        return vim.fn.mode() == "i"
+    end),
+    "returning to Search restores insert mode"
+)
 
 vim.api.nvim_feedkeys("jk", "x", false)
 vim.wait(100, function()
@@ -88,14 +114,90 @@ assert(vim.api.nvim_get_current_win() == prompt_winid, "append insert mode focus
 lines = vim.api.nvim_buf_get_lines(list_bufnr, 0, -1, false)
 assert(lines[1] == "1. Alpha", "append insert mode does not edit picker options")
 
-vim.api.nvim_buf_set_lines(prompt_bufnr, 0, 1, false, { "Search: gm" })
+vim.api.nvim_buf_set_lines(prompt_bufnr, 0, 1, false, { "> gm" })
 vim.api.nvim_exec_autocmds("TextChanged", { buffer = prompt_bufnr })
 lines = vim.api.nvim_buf_get_lines(list_bufnr, 0, -1, false)
 assert(lines[1] == "3. Gamma", "picker filters with fuzzy matching")
 
 vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "x", false)
 
-assert(selected == 3, "picker selection returns the original item index")
+assert(
+    vim.wait(1000, function()
+        return selected == 3
+    end),
+    "picker selection returns the original item index"
+)
+
+local numbered_selection = nil
+require("aiterm.ui.picker").select("Pick by number:", { "Alpha", "Beta", "Gamma" }, function(index)
+    numbered_selection = index
+end)
+
+local numbered_prompt_winid = vim.api.nvim_get_current_win()
+local numbered_list_bufnr = nil
+for _, winid in ipairs(vim.api.nvim_list_wins()) do
+    if winid ~= numbered_prompt_winid and vim.api.nvim_win_get_config(winid).relative == "editor" then
+        numbered_list_bufnr = vim.api.nvim_win_get_buf(winid)
+        break
+    end
+end
+assert(numbered_list_bufnr ~= nil, "numbered picker opens an option list")
+assert(
+    vim.wait(1000, function()
+        return vim.fn.mode() == "i"
+    end),
+    "numbered picker starts in insert mode"
+)
+vim.api.nvim_feedkeys("2", "x", false)
+assert(
+    vim.wait(1000, function()
+        local numbered_lines = vim.api.nvim_buf_get_lines(numbered_list_bufnr, 0, -1, false)
+        return #numbered_lines == 1 and numbered_lines[1] == "2. Beta"
+    end),
+    "typing an option number filters to that exact option"
+)
+vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "x", false)
+assert(
+    vim.wait(1000, function()
+        return numbered_selection == 2
+    end),
+    "enter executes the option selected by number"
+)
+
+local picker = require("aiterm.ui.picker")
+picker.select("First prompt:", { "Run now" }, function()
+    picker.select("Second prompt:", { "Keep graph output in Git", "Ignore graph output in Git" }, function() end)
+end)
+assert(
+    vim.wait(1000, function()
+        return vim.fn.mode() == "i" and vim.api.nvim_get_current_line() == "> "
+    end),
+    "first chained picker starts in its live prompt"
+)
+vim.api.nvim_feedkeys("1", "x", false)
+vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "x", false)
+assert(
+    vim.wait(1000, function()
+        return vim.fn.mode() == "i" and vim.api.nvim_get_current_line() == "> "
+    end),
+    "second chained picker automatically owns live prompt input"
+)
+vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
+assert(
+    vim.wait(1000, function()
+        return vim.fn.mode() == "n" and vim.api.nvim_get_current_line() == "1. Keep graph output in Git"
+    end),
+    "second chained picker can enter normal-mode option navigation"
+)
+vim.api.nvim_feedkeys("a", "x", false)
+assert(
+    vim.wait(1000, function()
+        return vim.fn.mode() == "i" and vim.api.nvim_get_current_line() == "> "
+    end),
+    "append returns the second chained picker to live prompt input"
+)
+vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc><Esc>", true, false, true), "x", false)
+vim.wait(100)
 
 local canceled = false
 require("aiterm.ui.picker").select("Cancel on leave:", { "Alpha", "Beta" }, function() end, function()
