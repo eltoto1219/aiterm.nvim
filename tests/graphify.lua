@@ -20,8 +20,13 @@ end
 local fake_graphify = {
     "import os, pathlib, sys",
     "action = pathlib.Path(sys.argv[0]).name",
-    'with open(os.environ["GRAPHIFY_TEST_LOG"], "a", encoding="utf-8") as handle:',
-    '    handle.write(" ".join([action, *sys.argv[1:]]) + "\\n")',
+    'if action == "install":',
+    '    platform = sys.argv[sys.argv.index("--platform") + 1]',
+    '    marker = pathlib.Path(os.environ["GRAPHIFY_TEST_LOG"] + ".install-" + platform)',
+    '    marker.write_text(" ".join(sys.argv[1:]) + "\\n", encoding="utf-8")',
+    "else:",
+    '    with open(os.environ["GRAPHIFY_TEST_LOG"], "a", encoding="utf-8") as handle:',
+    '        handle.write(" ".join([action, *sys.argv[1:]]) + "\\n")',
     'if action in ("extract", "update"):',
     '    output = pathlib.Path(sys.argv[1]) / "graphify-out"',
     "    output.mkdir(parents=True, exist_ok=True)",
@@ -128,16 +133,13 @@ opener_argv = nil
 vim.cmd.AITermGraphifyOpen()
 assert(opener_argv ~= nil, "Graphify open command uses the same HTML opener")
 assert(opener_argv[1] == "sensible-browser", "Graphify HTML uses a browser instead of the text/html MIME handler")
-assert(
-    opener_argv[2] == vim.fs.joinpath(repository, "graphify-out", "graph.html"),
-    "Graphify browser receives the generated HTML path: "
-        .. vim.inspect({
-            opener_argv = opener_argv,
-            cwd = vim.fn.getcwd(),
-            root = graphify.root(),
-            buftype = vim.bo.buftype,
-        })
-)
+local expected_html = vim.fs.joinpath(graphify.root(), "graphify-out", "graph.html")
+assert(opener_argv[2] == expected_html, "Graphify browser receives the generated HTML path: " .. vim.inspect({
+    opener_argv = opener_argv,
+    cwd = vim.fn.getcwd(),
+    root = graphify.root(),
+    buftype = vim.bo.buftype,
+}))
 
 opener_argv = nil
 vim.fn.has = function(feature)
@@ -251,11 +253,17 @@ assert(
     "build clusters without an LLM and writes graph HTML"
 )
 assert(
-    calls:find("install --project --platform test", 1, true),
+    vim.wait(2000, function()
+        return vim.fn.filereadable(log .. ".install-test") == 1
+    end),
     "build installs project-scoped Graphify guidance for available harnesses"
 )
 assert(
-    not calls:find("install --project --platform missingtest", 1, true),
+    table.concat(vim.fn.readfile(log .. ".install-test"), "\n"):find("--project --platform test", 1, true),
+    "build passes the project and platform arguments to Graphify install"
+)
+assert(
+    vim.fn.filereadable(log .. ".install-missingtest") == 0,
     "build skips Graphify guidance installation for unavailable harnesses"
 )
 assert(calls:find("update " .. repository, 1, true), "update uses Graphify incremental update")
