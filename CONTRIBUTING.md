@@ -39,6 +39,17 @@ make test
 When a change touches UI behavior, also test it manually in a real Neovim session.
 Headless tests are useful, but they do not catch every focus, float, or terminal-mode edge case.
 
+## Releases
+
+Generate release changelog entries from Git history instead of editing `CHANGELOG.md` directly.
+
+```sh
+nvim --headless --clean -l scripts/generate_changelog.lua "$NEW_TAG" "$PREVIOUS_TAG"
+```
+
+Pass the new release tag first and the previous release tag second.
+Only tag a release after the full GitHub Actions matrix passes on the release commit.
+
 ## Code Guidelines
 
 Keep changes scoped to the behavior you are changing.

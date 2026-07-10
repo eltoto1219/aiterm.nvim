@@ -10,7 +10,7 @@ Adoption polish, roughly in impact order:
 - [x] Document `:checkhealth aiterm` as the recommended first debugging path.
 - [ ] Add tests for session registry migration and backward compatibility before changing registry shape again.
 - [ ] Add `docs/workflows.md` with concrete workflows for AI session resume, persistent processes, treehouse workspace agents, and Graphify build/query usage.
-- [ ] Use user-facing release notes from now on with `Added`, `Changed`, and `Fixed` sections.
+- [x] Use user-facing release notes from now on with `Added`, `Changed`, and `Fixed` sections.
 - [ ] Consider an `:AITermStatus` command summarizing enabled modules, binaries, cwd sessions, and last restore state.
 - [ ] Add a real-CLI Graphify compatibility smoke test pinned to the documented supported version instead of relying only on the fake executable test.
 - [ ] Run the real-CLI Graphify smoke test on Linux, macOS, and Windows so command and path behavior cannot drift by platform.

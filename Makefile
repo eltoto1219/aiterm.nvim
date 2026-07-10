@@ -12,7 +12,7 @@ test:
 	done
 
 lint:
-	luacheck lua tests
+	luacheck lua tests scripts
 
 format-check:
 	$(STYLUA) --check .
